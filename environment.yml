@@ -1,0 +1,10 @@
+dependencies:
+  - python>=3.9.6
+  - pandas
+  - numpy
+  - matplotlib
+  - pip
+  - beautifulsoup4
+  - requests
+  - black
+  - jupyterlab
