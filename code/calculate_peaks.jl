@@ -1,0 +1,120 @@
+# Calculate peaks for all sensor data
+
+using CSV
+using Parquet
+using CodecZlib
+using ArgParse
+using StatsBase
+using Dates
+using Printf
+using ProgressBars
+using Suppressor
+using DataFrames
+using Missings
+
+s = ArgParseSettings()
+
+@add_arg_table s begin
+    "data_dir"
+        help = "Directory with data"
+end
+
+# periods is a dict of period name (e.g. pre-pandemic, post-pandemic, etc.) to dates (inclusive) for said period
+# days is the days of the week to retain (e.g. dropping weekends)
+function read_day_file(path::String)
+    cols = [:timestamp, :station, :district, :freeway_number, :direction, :lane_type, :station_len, :samples, :pct_obs, :total_flow, :avg_occ, :avg_speed_mph]
+    
+    open(GzipDecompressorStream, path) do stream
+        data = undef
+        # suppress warnings because per-lane information is in remaining columns, and since roads
+        # do not all have the same number of lanes, not all rows have same number of columns. Ignore
+        # warnings about that.
+        @suppress begin
+            data = CSV.read(stream, DataFrame, select=1:12, header=cols, dateformat="mm/dd/yyyy HH:MM:SS")#, types=types)
+        end
+        
+        # create bare date/time fields
+        data.time = Dates.Time.(data.timestamp)
+        return data
+    end
+end
+
+function peak_hour_factor_binary(time, avg_occ)
+    if any(ismissing.(avg_occ))
+        return (peak_hour_start=missing, peak_hour_occ=missing)
+    end
+    
+    sorter = StatsBase.ordinalrank(time)
+    sorted_occ = avg_occ[sorter]
+    sorted_time = time[sorter]    
+    if length(sorted_occ) != (24 * 12)  # 12 5 minute periods per hour, 24 hours per day
+        return (peak_hour_start=missing, peak_hour_occ=missing)
+    end
+            
+    highest_peak = -1.0
+    start_of_highest_peak = missing
+    for i in 1:(23 * 12)
+        peak_amt = sum(sorted_occ[i:i + 12])
+        if peak_amt > highest_peak
+            highest_peak = peak_amt
+            start_of_highest_peak = sorted_time[i]
+        end
+    end
+    
+    @assert !ismissing(start_of_highest_peak)
+    
+    # normalize to total traffic for day
+    phf = highest_peak / sum(avg_occ)
+    return (peak_hour_start=start_of_highest_peak, peak_hour_occ=phf)
+end
+
+function parse_file(file)
+    outf = file[1:length(file) - 7] * "_peaks.parquet"
+    if isfile(outf)
+        return
+    end
+
+    d = read_day_file(file)
+    peaks = combine(
+        groupby(d, :station),
+        [:time, :avg_occ] => peak_hour_factor_binary => [:peak_hour_start, :peak_hour_occ],
+        :avg_occ => sum => :total_occ,
+        :total_flow => sum => :total_flow
+    )
+
+    # same for all observations
+    peaks[!, :year] .= Dates.year(d.timestamp[1])
+    peaks[!, :month] .= Dates.month(d.timestamp[1])
+    peaks[!, :day] .= Dates.day(d.timestamp[1])
+    peaks.peak_hour_start_hour = passmissing(Dates.hour).(peaks.peak_hour_start)
+    peaks.peak_hour_start_minute = passmissing(Dates.minute).(peaks.peak_hour_start)
+    peaks[!, :day_of_week] .= Dates.dayname(d.timestamp[1])
+
+    # remove the raw peak_hour_start field as parquet cannot handle times
+    select!(peaks, Not(:peak_hour_start))
+
+    # write out
+    write_parquet(outf * ".in_progress", peaks)
+
+    # make sure it was completely written and not corrupted before renaming
+    mv(outf * ".in_progress", outf)
+end
+
+function main()
+    parsed_args = parse_args(ARGS, s)
+    data_dir = parsed_args["data_dir"]
+    all_files = readdir(data_dir)
+    file_pattern = r"d12_text_station_5min_[0-9]{4}_[0-9]{2}_[0-9]{2}.txt.gz"
+
+    candidate_files = collect(filter(f -> occursin(file_pattern, f), all_files))
+
+    @printf "Found %d candidate files\n" length(candidate_files)
+
+    # this was multithreaded but threads don't save us much, this is IO bound
+    for file in ProgressBar(candidate_files)
+        parse_file(joinpath(data_dir, file))
+    end
+end
+
+main()
+#parse_file("/Volumes/Pheasant Ridge/pems/d12_text_station_5min_2021_01_03.txt.gz")
