@@ -25,14 +25,14 @@ from time import sleep
 from random import random
 
 DISTRICTS = [3, 4, 5, 6, 7, 8, 10, 11, 12]
-#DISTRICTS = [8, 10, 11, 12]
-#YEARS = [2016, 2017, 2018, 2019, 2020, 2021]
+# DISTRICTS = [8, 10, 11, 12]
+# YEARS = [2016, 2017, 2018, 2019, 2020, 2021]
 YEARS = [2021]  # run script again to update data
 
 logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s",
-    datefmt='%Y-%m-%d %H:%M:%S',
-    level=logging.INFO
+    datefmt="%Y-%m-%d %H:%M:%S",
+    level=logging.INFO,
 )
 
 LOG = logging.getLogger(__name__)
@@ -45,12 +45,10 @@ username = environ["PEMS_USER"]
 pw = environ["PEMS_PASSWORD"]
 LOG.info(f"Logging in to PEMS as user {username}")
 jar = requests.cookies.RequestsCookieJar()
-login = requests.post("https://pems.dot.ca.gov", data={
-    "username": username,
-    "password": pw,
-    "redirect": "",
-    "login": "Login"
-})
+login = requests.post(
+    "https://pems.dot.ca.gov",
+    data={"username": username, "password": pw, "redirect": "", "login": "Login"},
+)
 
 data_folder = sys.argv[1]
 LOG.info(f"Saving output to {data_folder}")
@@ -76,8 +74,10 @@ for district in DISTRICTS:
                 "geotag": "",
                 "yy": year,
                 "type": "station_5min",
-                "returnformat": "text"
-            }, cookies=sess)
+                "returnformat": "text",
+            },
+            cookies=sess,
+        )
 
         file_req.raise_for_status()
 
@@ -89,23 +89,34 @@ for district in DISTRICTS:
             for file in files:
                 final_outfile = os.path.join(data_folder, file["file_name"])
                 if os.path.exists(final_outfile):
-                    LOG.info(f"{file['file_name']} already exists in output directory, skipping")
+                    LOG.info(
+                        f"{file['file_name']} already exists in output directory, skipping"
+                    )
                 else:
-                    outfile = os.path.join(data_folder, file["file_name"] + ".download_in_progress")
+                    outfile = os.path.join(
+                        data_folder, file["file_name"] + ".download_in_progress"
+                    )
                     with open(outfile, "wb") as output:
                         for i in range(5):
                             sleep(random() * 2)
                             try:
-                                with requests.get("https://pems.dot.ca.gov" + file["url"][1:], cookies=sess) as r:
+                                with requests.get(
+                                    "https://pems.dot.ca.gov" + file["url"][1:],
+                                    cookies=sess,
+                                ) as r:
                                     r.raise_for_status()
 
                                     for chunk in r.iter_content(8192):
                                         output.write(chunk)
                             except:
                                 if i < 4:
-                                    LOG.warning(f"Error retrieving {file['file_name']}, retrying")
+                                    LOG.warning(
+                                        f"Error retrieving {file['file_name']}, retrying"
+                                    )
                                 else:
-                                    LOG.error(f"Could not retrieve {file['file_name']} after 5 tries, exiting")
+                                    LOG.error(
+                                        f"Could not retrieve {file['file_name']} after 5 tries, exiting"
+                                    )
                                     sys.exit(1)
                             else:
                                 n_downloads += 1
@@ -113,12 +124,3 @@ for district in DISTRICTS:
                                 break
 
 LOG.info(f"Downloaded {n_downloads} files")
-                                
-
-
-
-
-        
-
-
-
