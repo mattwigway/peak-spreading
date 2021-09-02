@@ -118,7 +118,7 @@ function main()
     total_files = length(candidate_files)
     @printf "Found %d candidate files\n" total_files
 
-    count = Threads.Atomic{UInt32}(0)
+    count = Threads.Atomic{Int64}(0)
     Threads.@threads for file in candidate_files
         #set_multiline_postfix(pbar, file)
         if Threads.atomic_add!(count, 1) % 25 == 0
