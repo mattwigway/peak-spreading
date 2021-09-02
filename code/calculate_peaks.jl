@@ -117,12 +117,15 @@ function main()
     # TODO why does D12 have one more file than D04?
     candidate_files = collect(filter(f -> occursin(file_pattern, f), all_files))
 
-    @printf "Found %d candidate files\n" length(candidate_files)
+    total_files = length(candidate_files)
+    @printf "Found %d candidate files\n" total_files
 
-    # this was multithreaded but threads don't save us much, this is IO bound
-    pbar = ProgressBar(candidate_files)
-    for file in pbar
-        set_multiline_postfix(pbar, file)
+    Threads.@threads for (idx, file) in collect(enumerate(candidate_files))
+        #set_multiline_postfix(pbar, file)
+        if idx % 25 == 0
+            @printf "%d / %d (%.1f%%): %s" idx total_files (idx / total_files * 100) file
+        end
+        
         parse_file(joinpath(data_dir, file), pbar)
     end
 end
