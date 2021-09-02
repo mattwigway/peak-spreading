@@ -29,7 +29,7 @@ function read_day_file(path::String)
         # suppress warnings because per-lane information is in remaining columns, and since roads
         # do not all have the same number of lanes, not all rows have same number of columns. Ignore
         # warnings about that.
-        data = CSV.read(stream, DataFrame, select=1:12, header=cols, dateformat="mm/dd/yyyy HH:MM:SS")#, types=types)
+        data = CSV.read(stream, DataFrame, select=collect(1:12), header=cols, dateformat="mm/dd/yyyy HH:MM:SS")#, types=types)
         
         # create bare date/time fields
         data.time = Dates.Time.(data.timestamp)
@@ -121,8 +121,9 @@ function main()
     count = Threads.Atomic{Int64}(0)
     Threads.@threads for file in candidate_files
         #set_multiline_postfix(pbar, file)
-        if Threads.atomic_add!(count, 1) % 25 == 0
-            @printf "%d / %d (%.1f%%): %s" count total_files (count / total_files * 100) file
+        current_count = Threads.atomic_add!(count, 1)
+        if  current_count % 25 == 0
+            @printf "%d / %d (%.1f%%): %s" count total_files (current_count / total_files * 100) file
         end
         
         parse_file(joinpath(data_dir, file))
