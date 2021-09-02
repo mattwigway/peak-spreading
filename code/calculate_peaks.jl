@@ -112,7 +112,7 @@ function main()
     parsed_args = parse_args(ARGS, s)
     data_dir = parsed_args["data_dir"]
     all_files = readdir(data_dir)
-    file_pattern = r"d04_text_station_5min_[0-9]{4}_[0-9]{2}_[0-9]{2}.txt.gz"
+    file_pattern = r"d[0-9]{2}_text_station_5min_[0-9]{4}_[0-9]{2}_[0-9]{2}.txt.gz"
 
     # TODO why does D12 have one more file than D04?
     candidate_files = collect(filter(f -> occursin(file_pattern, f), all_files))
