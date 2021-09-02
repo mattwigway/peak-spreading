@@ -68,7 +68,7 @@ function peak_hour_factor_binary(time, avg_occ)
     return (peak_hour_start=start_of_highest_peak, peak_hour_occ=phf)
 end
 
-function parse_file(file, pbar)
+function parse_file(file)
     outf = file[1:length(file) - 7] * "_peaks.parquet"
 
     #println(outf)
@@ -86,7 +86,7 @@ function parse_file(file, pbar)
         )
 
         if all(ismissing.(peaks.peak_hour_occ))
-            println(pbar, file * "has no full observations")
+            println(file * "has no full observations")
         else
             # same for all observations
             peaks[!, :year] .= Dates.year(d.timestamp[1])
@@ -126,7 +126,7 @@ function main()
             @printf "%d / %d (%.1f%%): %s" idx total_files (idx / total_files * 100) file
         end
         
-        parse_file(joinpath(data_dir, file), pbar)
+        parse_file(joinpath(data_dir, file))
     end
 end
 
