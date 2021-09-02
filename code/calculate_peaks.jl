@@ -29,9 +29,7 @@ function read_day_file(path::String)
         # suppress warnings because per-lane information is in remaining columns, and since roads
         # do not all have the same number of lanes, not all rows have same number of columns. Ignore
         # warnings about that.
-        @suppress begin
-            data = CSV.read(stream, DataFrame, select=1:12, header=cols, dateformat="mm/dd/yyyy HH:MM:SS")#, types=types)
-        end
+        data = CSV.read(stream, DataFrame, select=1:12, header=cols, dateformat="mm/dd/yyyy HH:MM:SS")#, types=types)
         
         # create bare date/time fields
         data.time = Dates.Time.(data.timestamp)
@@ -120,9 +118,10 @@ function main()
     total_files = length(candidate_files)
     @printf "Found %d candidate files\n" total_files
 
-    Threads.@threads for (idx, file) in collect(enumerate(candidate_files))
+    count = Threads.Atomic{UInt32}(0)
+    Threads.@threads for file in candidate_files
         #set_multiline_postfix(pbar, file)
-        if idx % 25 == 0
+        if atomic_add!(count, 1) % 25 == 0
             @printf "%d / %d (%.1f%%): %s" idx total_files (idx / total_files * 100) file
         end
         
