@@ -122,7 +122,7 @@ function main()
     Threads.@threads for file in candidate_files
         #set_multiline_postfix(pbar, file)
         if Threads.atomic_add!(count, 1) % 25 == 0
-            @printf "%d / %d (%.1f%%): %s" idx total_files (idx / total_files * 100) file
+            @printf "%d / %d (%.1f%%): %s" count total_files (count / total_files * 100) file
         end
         
         parse_file(joinpath(data_dir, file))
