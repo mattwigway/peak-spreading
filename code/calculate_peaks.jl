@@ -121,7 +121,7 @@ function main()
     count = Threads.Atomic{UInt32}(0)
     Threads.@threads for file in candidate_files
         #set_multiline_postfix(pbar, file)
-        if atomic_add!(count, 1) % 25 == 0
+        if Threads.atomic_add!(count, 1) % 25 == 0
             @printf "%d / %d (%.1f%%): %s" idx total_files (idx / total_files * 100) file
         end
         
