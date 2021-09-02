@@ -120,7 +120,7 @@ function main()
     total_files = length(candidate_files)
     @printf "Found %d candidate files\n" total_files
 
-    Threads.@threads for (idx, file) in collect(enumerate(candidate_files))
+    for (idx, file) in collect(enumerate(candidate_files))
         #set_multiline_postfix(pbar, file)
         if idx % 25 == 0
             @printf "%d / %d (%.1f%%): %s" idx total_files (idx / total_files * 100) file
