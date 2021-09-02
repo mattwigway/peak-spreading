@@ -5,7 +5,7 @@
 #SBATCH --nodes=1
 # 12 cpus per task = half a node
 #SBATCH --cpus-per-task=12
-#SBATCH --mem=16G
+#SBATCH --mem=64G
 #SBATCH --time=36:00:00
 
 DIR=/pine/scr/m/w/mwbc/pems
