@@ -26,11 +26,13 @@ function read_day_file(path::String)
     cols = [:timestamp, :station, :district, :freeway_number, :direction, :lane_type, :station_len, :samples, :pct_obs, :total_flow, :avg_occ, :avg_speed_mph]
     
     open(GzipDecompressorStream, path) do stream
-        data = undef
+        local data
         # suppress warnings because per-lane information is in remaining columns, and since roads
         # do not all have the same number of lanes, not all rows have same number of columns. Ignore
         # warnings about that.
-        data = CSV.read(stream, DataFrame, select=collect(1:12), header=cols, dateformat="mm/dd/yyyy HH:MM:SS")#, types=types)
+        @suppress begin
+            data = CSV.read(stream, DataFrame, select=collect(1:12), header=cols, dateformat="mm/dd/yyyy HH:MM:SS")#, types=types)
+        end
         
         # create bare date/time fields
         data.time = Dates.Time.(data.timestamp)
@@ -44,7 +46,7 @@ function peak_hour_factor_binary(time, avg_occ)
     end
     
     sorter = sortperm(time)
-    sorted_occ = avg_occ[sorter]
+    sorted_occ = avg_occ[sorter]ß
     sorted_time = time[sorter]    
     if length(sorted_occ) != (24 * 12)  # 12 5 minute periods per hour, 24 hours per day
         return (peak_hour_start=missing, peak_hour_occ=missing)
@@ -111,7 +113,7 @@ function main()
     parsed_args = parse_args(ARGS, s)
     data_dir = parsed_args["data_dir"]
     all_files = readdir(data_dir)
-    file_pattern = r"d11_text_station_5min_[0-9]{4}_[0-9]{2}_[0-9]{2}.txt.gz"
+    file_pattern = r"d11_text_station_5min_2018_[0-9]{2}_[0-9]{2}.txt.gz"
 
     # TODO why does D12 have one more file than D04?
     candidate_files = collect(filter(f -> occursin(file_pattern, f), all_files))
