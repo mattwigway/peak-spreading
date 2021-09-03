@@ -121,13 +121,13 @@ function main()
     total_files = length(candidate_files)
     @info "Found %d candidate files\n" total_files
 
-    count = Threads.Atomic{Int64}(0)
+    #count = Threads.Atomic{Int64}(0)
     Threads.@threads for file in candidate_files
         #set_multiline_postfix(pbar, file)
-        current_count = Threads.atomic_add!(count, 1)[]
-        if current_count % 25 == 0
-            @info @sprintf "%d / %d (%.1f%%): %s" current_count total_files (current_count / total_files * 100) file
-        end
+        #current_count = Threads.atomic_add!(count, 1)[]
+        # if current_count % 25 == 0
+        #     @info @sprintf "%d / %d (%.1f%%): %s" current_count total_files (current_count / total_files * 100) file
+        # end
         
         parse_file(joinpath(data_dir, file))
     end
