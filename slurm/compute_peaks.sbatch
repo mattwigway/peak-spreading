@@ -4,7 +4,7 @@
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --mem=12G
-#SBATCH --time=36:00:00
+#SBATCH --time=72:00:00
 
 DIR=/pine/scr/m/w/mwbc/pems
 
