@@ -11,6 +11,7 @@ using ProgressBars
 using Suppressor
 using DataFrames
 using Missings
+using Logging
 
 s = ArgParseSettings()
 
@@ -110,7 +111,7 @@ function main()
     parsed_args = parse_args(ARGS, s)
     data_dir = parsed_args["data_dir"]
     all_files = readdir(data_dir)
-    file_pattern = r"d[0-9]{2}_text_station_5min_[0-9]{4}_[0-9]{2}_[0-9]{2}.txt.gz"
+    file_pattern = r"d11_text_station_5min_[0-9]{4}_[0-9]{2}_[0-9]{2}.txt.gz"
 
     # TODO why does D12 have one more file than D04?
     candidate_files = collect(filter(f -> occursin(file_pattern, f), all_files))
@@ -122,8 +123,8 @@ function main()
     Threads.@threads for file in candidate_files
         #set_multiline_postfix(pbar, file)
         current_count = Threads.atomic_add!(count, 1)[]
-        if  current_count % 25 == 0
-            @printf "%d / %d (%.1f%%): %s" current_count total_files (current_count / total_files * 100) file
+        if current_count % 25 == 0
+            @info @sprintf "%d / %d (%.1f%%): %s" current_count total_files (current_count / total_files * 100) file
         end
         
         parse_file(joinpath(data_dir, file))
