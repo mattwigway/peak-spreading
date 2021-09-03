@@ -12,6 +12,7 @@ using Suppressor
 using DataFrames
 using Missings
 using Logging
+using Random
 
 s = ArgParseSettings()
 
@@ -119,16 +120,24 @@ function main()
     candidate_files = collect(filter(f -> occursin(file_pattern, f), all_files))
 
     total_files = length(candidate_files)
-    @info "Found %d candidate files\n" total_files
+    @info "Found $total_files candidate files"
 
-    #count = Threads.Atomic{Int64}(0)
+    # shuffle the files so the progress bar is right (e.g. so that Thread 1 which tracks
+    # progress doesn't end up with all the easy files)
+    shuffle!(candidate_files)
+
+    t1_count = 0
     Threads.@threads for file in candidate_files
-        #set_multiline_postfix(pbar, file)
-        #current_count = Threads.atomic_add!(count, 1)[]
-        # if current_count % 25 == 0
-        #     @info @sprintf "%d / %d (%.1f%%): %s" current_count total_files (current_count / total_files * 100) file
-        # end
-        
+        # avoid atomic blocking observations, just estimate based on Thread 1
+        if Threads.threadid() == 1
+            if t1_count % 10 == 0
+                est_count = t1_count * Threads.nthreads()
+                pct_complete = est_count / total_files
+                @info @sprintf "%.1f%% complete (estimated)"
+            end
+            t1_count += 1
+        end
+                
         parse_file(joinpath(data_dir, file))
     end
 end
