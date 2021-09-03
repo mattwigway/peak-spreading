@@ -12,5 +12,6 @@ DIR=/pine/scr/m/w/mwbc/pems
 
 module load julia/1.6.2
 cd ~/peak-spreading/code
-julia --project=@. --threads=${SLURM_CPUS_PER_TASK} calculate_peaks.jl $DIR
-julia --project=@. --threads=${SLURM_CPUS_PER_TASK} combine_peaks.jl $DIR ~/peak-spreading/all_district_peaks.parquet
+# 4 CPUS per task - waits for i/o a lot
+julia --project=@. --threads=48 calculate_peaks.jl $DIR
+julia --project=@. --threads=1 combine_peaks.jl $DIR ~/peak-spreading/all_district_peaks.parquet
