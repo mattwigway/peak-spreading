@@ -122,22 +122,10 @@ function main()
     total_files = length(candidate_files)
     @info "Found $total_files candidate files"
 
-    # shuffle the files so the progress bar is right (e.g. so that Thread 1 which tracks
-    # progress doesn't end up with all the easy files)
-    shuffle!(candidate_files)
-
-    t1_count = 0
-    Threads.@threads for file in candidate_files
-        # avoid atomic blocking observations, just estimate based on Thread 1
-        if Threads.threadid() == 1
-            if t1_count % 10 == 0
-                est_count = t1_count * Threads.nthreads()
-                pct_complete = est_count / total_files
-                @info @sprintf "%.1f%% complete (estimated)" pct_complete
-            end
-            t1_count += 1
+    for (idx, file) in candidate_files
+        if idx % 25 == 0
+            @info @sprintf "%d / %d files (%.1f%%) complete (%s)" idx total_files idx / total_files * 100 file
         end
-
         parse_file(joinpath(data_dir, file))
     end
 end
