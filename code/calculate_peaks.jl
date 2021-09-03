@@ -46,7 +46,7 @@ function peak_hour_factor_binary(time, avg_occ)
     end
     
     sorter = sortperm(time)
-    sorted_occ = avg_occ[sorter]ß
+    sorted_occ = avg_occ[sorter]
     sorted_time = time[sorter]    
     if length(sorted_occ) != (24 * 12)  # 12 5 minute periods per hour, 24 hours per day
         return (peak_hour_start=missing, peak_hour_occ=missing)
