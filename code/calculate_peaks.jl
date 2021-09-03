@@ -122,7 +122,7 @@ function main()
     total_files = length(candidate_files)
     @info "Found $total_files candidate files"
 
-    for (idx, file) in candidate_files
+    for (idx, file) in enumerate(candidate_files)
         if idx % 25 == 0
             @info @sprintf "%d / %d files (%.1f%%) complete (%s)" idx total_files idx / total_files * 100 file
         end
