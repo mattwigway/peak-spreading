@@ -13,4 +13,4 @@ DIR=/pine/scr/m/w/mwbc/pems
 module load julia/1.6.2
 cd ~/peak-spreading/code
 julia --project=@. --threads=$SLURM_CPUS_PER_TASK calculate_peaks.jl $DIR 2>&1 > ~/peak-spreading/calculate_peaks_${SLURM_JOB_ID}.log
-julia --project=@. --threads=1 combine_peaks.jl $DIR ~/peak-spreading/all_district_peaks.parquet
+#julia --project=@. --threads=1 combine_peaks.jl $DIR ~/peak-spreading/all_district_peaks.parquet
