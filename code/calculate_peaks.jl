@@ -133,11 +133,11 @@ function main()
             if t1_count % 10 == 0
                 est_count = t1_count * Threads.nthreads()
                 pct_complete = est_count / total_files
-                @info @sprintf "%.1f%% complete (estimated)"
+                @info @sprintf "%.1f%% complete (estimated)" pct_complete
             end
             t1_count += 1
         end
-                
+
         parse_file(joinpath(data_dir, file))
     end
 end
