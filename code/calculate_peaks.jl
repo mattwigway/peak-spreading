@@ -119,7 +119,7 @@ function main()
     candidate_files = collect(filter(f -> occursin(file_pattern, f), all_files))
 
     total_files = length(candidate_files)
-    @printf "Found %d candidate files\n" total_files
+    @info "Found %d candidate files\n" total_files
 
     count = Threads.Atomic{Int64}(0)
     Threads.@threads for file in candidate_files
