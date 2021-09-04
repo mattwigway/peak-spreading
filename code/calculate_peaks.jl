@@ -26,18 +26,22 @@ end
 function read_day_file(path::String)
     cols = [:timestamp, :station, :district, :freeway_number, :direction, :lane_type, :station_len, :samples, :pct_obs, :total_flow, :avg_occ, :avg_speed_mph]
     
-    open(GzipDecompressorStream, path) do stream
-        local data
-        # suppress warnings because per-lane information is in remaining columns, and since roads
-        # do not all have the same number of lanes, not all rows have same number of columns. Ignore
-        # warnings about that.
-        @suppress begin
-            data = CSV.read(stream, DataFrame, select=collect(1:12), header=cols, dateformat="mm/dd/yyyy HH:MM:SS")#, types=types)
+    try
+        open(GzipDecompressorStream, path) do stream
+            local data
+            # suppress warnings because per-lane information is in remaining columns, and since roads
+            # do not all have the same number of lanes, not all rows have same number of columns. Ignore
+            # warnings about that.
+            @suppress begin
+                data = CSV.read(stream, DataFrame, select=collect(1:12), header=cols, dateformat="mm/dd/yyyy HH:MM:SS")#, types=types)
+            end
+            
+            # create bare date/time fields
+            data.time = Dates.Time.(data.timestamp)
+            return data
         end
-        
-        # create bare date/time fields
-        data.time = Dates.Time.(data.timestamp)
-        return data
+    catch e
+        @error "File $path could not be processed" e
     end
 end
 
