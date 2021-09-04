@@ -41,7 +41,8 @@ function read_day_file(path::String)
             return data
         end
     catch e
-        @error "File $path could not be processed" e
+        @error "File could not be read" e
+        return nothing
     end
 end
 
@@ -81,35 +82,41 @@ function parse_file(file)
 
     if !isfile(outf)
         d = read_day_file(file)
-        peaks = combine(
-            groupby(d, :station),
-            [:time, :avg_occ] => peak_hour_factor_binary => [:peak_hour_start, :peak_hour_occ],
-            :avg_occ => sum => :total_occ,
-            :total_flow => sum => :total_flow,
-            :lane_type => first => :station_type,
-            :freeway_number => first => :freeway_number,
-            :direction => first => :direction
-        )
 
-        if all(ismissing.(peaks.peak_hour_occ))
-            @warn "$(file) has no observations"
+        if isnothing(d)
+            @error "Failed to read $file"
         else
-            # same for all observations
-            peaks[!, :year] .= Dates.year(d.timestamp[1])
-            peaks[!, :month] .= Dates.month(d.timestamp[1])
-            peaks[!, :day] .= Dates.day(d.timestamp[1])
-            peaks.peak_hour_start_hour = passmissing(Dates.hour).(peaks.peak_hour_start)
-            peaks.peak_hour_start_minute = passmissing(Dates.minute).(peaks.peak_hour_start)
-            peaks[!, :day_of_week] .= Dates.dayname(d.timestamp[1])
 
-            # remove the raw peak_hour_start field as parquet cannot handle times
-            select!(peaks, Not(:peak_hour_start))
+            peaks = combine(
+                groupby(d, :station),
+                [:time, :avg_occ] => peak_hour_factor_binary => [:peak_hour_start, :peak_hour_occ],
+                :avg_occ => sum => :total_occ,
+                :total_flow => sum => :total_flow,
+                :lane_type => first => :station_type,
+                :freeway_number => first => :freeway_number,
+                :direction => first => :direction
+            )
 
-            # write out
-            write_parquet(outf * ".in_progress", peaks)
+            if all(ismissing.(peaks.peak_hour_occ))
+                @warn "$(file) has no observations"
+            else
+                # same for all observations
+                peaks[!, :year] .= Dates.year(d.timestamp[1])
+                peaks[!, :month] .= Dates.month(d.timestamp[1])
+                peaks[!, :day] .= Dates.day(d.timestamp[1])
+                peaks.peak_hour_start_hour = passmissing(Dates.hour).(peaks.peak_hour_start)
+                peaks.peak_hour_start_minute = passmissing(Dates.minute).(peaks.peak_hour_start)
+                peaks[!, :day_of_week] .= Dates.dayname(d.timestamp[1])
 
-            # make sure it was completely written and not corrupted before renaming
-            mv(outf * ".in_progress", outf)
+                # remove the raw peak_hour_start field as parquet cannot handle times
+                select!(peaks, Not(:peak_hour_start))
+
+                # write out
+                write_parquet(outf * ".in_progress", peaks)
+
+                # make sure it was completely written and not corrupted before renaming
+                mv(outf * ".in_progress", outf)
+            end
         end
     end
 end
