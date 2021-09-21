@@ -16,16 +16,23 @@ using Random
 
 include("holidays.jl")
 
-# dates where there was no mask mandate in California
-# statewide mask mandate lifted June 15: https://www.latimes.com/science/story/2021-07-27/timeline-cdc-mask-guidance-during-covid-19-pandemic
-# LA county requires masks again after July 17: https://www.latimes.com/california/story/2021-07-15/l-a-county-will-require-masks-indoors-amid-covid-19-surge
-const DEFAULT_POST_PANDEMIC_PERIOD = [Date(2021, 6, 15), Date(2021, 7, 17)]
 
 const DEFAULT_PERMUTATIONS = 1000
 
 const SEED = 867_5309
 
-function read_data(data_path, meta_path; period=DEFAULT_POST_PANDEMIC_PERIOD)
+# Get the relevant period for a particular year - from the third Tuesday of June to 32 days later
+# dates where there was no mask mandate in California
+# statewide mask mandate lifted June 15: https://www.latimes.com/science/story/2021-07-27/timeline-cdc-mask-guidance-during-covid-19-pandemic
+# LA county requires masks again after July 17: https://www.latimes.com/california/story/2021-07-15/l-a-county-will-require-masks-indoors-amid-covid-19-surge
+function period_for_year(year)
+    start = Dates.tonext(d -> Dates.dayofweek(d) == Dates.Tuesday, Date(year, 5, 31)) + Dates.Week(2)
+    endd = start + Dates.Day(32)
+    return start, endd
+end
+
+# TODO this function is painfully slow. Why? The join? Should we cache the join?
+function read_data(data_path, meta_path)
     sensor_meta = CSV.read(meta_path, DataFrame)
     data = DataFrame(read_parquet(data_path))
 
@@ -40,13 +47,13 @@ function read_data(data_path, meta_path; period=DEFAULT_POST_PANDEMIC_PERIOD)
 
     # add a period field
     periods = Dict(
-        "postpandemic" => [period],
-        "pandemic" => [period .- Dates.Year(1)],
+        "postpandemic" => [period_for_year(2021)],
+        "pandemic" => [period_for_year(2020)],
         "prepandemic" => [
-            period .- Dates.Year(2),
-            period .- Dates.Year(3),
-            period .- Dates.Year(4),
-            period .- Dates.Year(5)
+            period_for_year(2019),
+            period_for_year(2018),
+            period_for_year(2017),
+            period_for_year(2016)
         ]
     )
 
