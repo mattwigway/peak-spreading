@@ -8,5 +8,5 @@ jobs:
       - uses: julia-actions/setup-julia@v1
         with:
           version: "1.6.2"
-      - run: cd code/test
       - run: julia --project runtests.jl
+        working-directory: ./code/test
