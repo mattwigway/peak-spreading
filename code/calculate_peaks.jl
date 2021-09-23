@@ -75,6 +75,28 @@ function peak_hour_factor_binary(time, avg_occ)
     return (peak_hour_start=start_of_highest_peak, peak_hour_occ=phf)
 end
 
+# Really this is just an entropy function, but we name it more specifically
+# because we're only using it for occupancy
+function occupancy_entropy(avg_occ)
+    if any(ismissing.(avg_occ))
+        return missing
+    end
+
+    epsilon = 0.001
+    avg_occ = avg_occ .+ epsilon
+    
+    norm_avg_occ = avg_occ ./ sum(avg_occ)
+    entropy = 0
+
+    for p in norm_avg_occ
+        @assert p != 0
+        entropy -= p * log(p)
+    end
+
+    @assert entropy != 0
+    return entropy
+end
+
 function parse_file(file)
     outf = file[1:length(file) - 7] * "_peaks.parquet"
 
@@ -90,6 +112,7 @@ function parse_file(file)
             peaks = combine(
                 groupby(d, :station),
                 [:time, :avg_occ] => peak_hour_factor_binary => [:peak_hour_start, :peak_hour_occ],
+                :avg_occ => occupancy_entropy => :occ_entropy,
                 :avg_occ => sum => :total_occ,
                 :total_flow => sum => :total_flow,
                 :lane_type => first => :station_type,
