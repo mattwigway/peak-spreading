@@ -108,4 +108,7 @@ end
     # should handle missings
     @test ismissing(KFactorPeaks.longest_imputed_time([Dates.Time(12, 15, 0), missing], [1, 2]))
     @test ismissing(KFactorPeaks.longest_imputed_time([Dates.Time(12, 15, 0), Dates.Time(15, 0, 0)], [1, missing]))
+
+    # break a test to make sure the CI works
+    @test false
 end
