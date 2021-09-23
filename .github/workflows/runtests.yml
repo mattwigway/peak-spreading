@@ -8,7 +8,7 @@ jobs:
       - uses: julia-actions/setup-julia@v1
         with:
           version: "1.6.2"
-      - run:> julia <<EOF
+      - run: > julia <<EOF
           using Pkg
           Pkg.instantiate()
           EOF
