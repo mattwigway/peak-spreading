@@ -99,7 +99,23 @@ end
 # enforce Integer to make sure we avoid floating-point roundoff errors
 periods_imputed(pct_obs::Vector{<:Union{<:Integer, Missing}}) = any(ismissing.(pct_obs)) ? missing : sum(pct_obs .!= 100)
 
+# What was the longest amount of time (in minutes) that data were imputed from this sensor?
+function longest_imputed_time(times, pct_obs::Vector{<:Union{<:Integer, Missing}})
+    if any(ismissing.(times)) || any(ismissing.(pct_obs))
+        return missing
+    end
 
+    sorter = sortperm(times)
+    ordered_any_missing = pct_obs[sorter] .!= 100
+
+    if !any(ordered_any_missing)
+        return 0
+    end
+
+    vals, runlength = rle(ordered_any_missing)
+    # the longest runlength where any_missing == true, * 5 to convert to minutes
+    return max(runlength[vals]...) * 5
+end
 
 function parse_file(file)
     outf = file[1:length(file) - 7] * "_peaks.parquet"
@@ -122,6 +138,7 @@ function parse_file(file)
                 :lane_type => first => :station_type,
                 :freeway_number => first => :freeway_number,
                 :pct_obs => periods_imputed => :periods_imputed,
+                [:time, :pct_obs] => longest_imputed_time => :longest_imputed_time,
                 :direction => first => :direction
             )
 

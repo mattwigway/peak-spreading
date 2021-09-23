@@ -81,3 +81,31 @@ end
     @test KFactorPeaks.periods_imputed([0, 100, 50]) == 2
     @test ismissing(KFactorPeaks.periods_imputed([0, 50, missing]))
 end
+
+@testset "Longest imputed time" begin
+    times = Dates.Minute.(0:5:(24 * 60 - 1)) .+ Dates.Time(0, 0, 0)
+    pct_obs = convert(Vector{Union{Int64, Missing}}, fill(100, 288))
+
+    @test KFactorPeaks.longest_imputed_time(times, pct_obs) == 0
+
+    pct_obs[22:33] .= 50 # 12 consecutive periods, i.e. 60 minutes, unobserved
+    pct_obs[55:57] .= 50 # should affect nothing, not the longest period
+    @test KFactorPeaks.longest_imputed_time(times, pct_obs) == 60
+
+    # make sure it works when shuffled
+    rng = MersenneTwister(85287)
+    new_order = collect(1:length(times))
+    shuffle!(rng, new_order)
+    shuffled_times = times[new_order]
+    shuffled_obs = pct_obs[new_order]
+    orig_times = copy(shuffled_times)
+    orig_obs = copy(shuffled_obs)
+
+    @test KFactorPeaks.longest_imputed_time(shuffled_times, shuffled_obs) == 60
+    @test all(shuffled_times .== orig_times)
+    @test all(shuffled_obs .== orig_obs)
+
+    # should handle missings
+    @test ismissing(KFactorPeaks.longest_imputed_time([Dates.Time(12, 15, 0), missing], [1, 2]))
+    @test ismissing(KFactorPeaks.longest_imputed_time([Dates.Time(12, 15, 0), Dates.Time(15, 0, 0)], [1, missing]))
+end
