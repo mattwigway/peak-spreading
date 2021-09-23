@@ -37,7 +37,7 @@ function read_day_file(path::String)
 end
 
 function peak_hour_factor_binary(time, avg_occ)
-    if any(ismissing.(avg_occ))
+    if any(ismissing.(avg_occ)) || any(ismissing.(time))
         return (peak_hour_start=missing, peak_hour_occ=missing)
     end
     
@@ -51,7 +51,8 @@ function peak_hour_factor_binary(time, avg_occ)
     highest_peak = -1.0
     start_of_highest_peak = missing
     for i in 1:(23 * 12)
-        peak_amt = sum(sorted_occ[i:i + 12])
+        # + 11 because i:i + 12 has length 13, is one hour and 5 minutes
+        peak_amt = sum(sorted_occ[i:i + 11])
         if peak_amt > highest_peak
             highest_peak = peak_amt
             start_of_highest_peak = sorted_time[i]
@@ -71,19 +72,26 @@ function occupancy_entropy(avg_occ)
     if any(ismissing.(avg_occ))
         return missing
     end
-
-    epsilon = 0.001
-    avg_occ = avg_occ .+ epsilon
     
-    norm_avg_occ = avg_occ ./ sum(avg_occ)
+    tot_occ = sum(avg_occ)
+
+    if tot_occ > 0
+        norm_avg_occ = avg_occ ./ tot_occ
+        # don't normalize if sum is zero, but still run entropy calc so we get nonnegative assertion
+        # if we just short-circuited, entropy([-1, 1]) => 0
+    else
+        norm_avg_occ = avg_occ
+    end
+
     entropy = 0
 
     for p in norm_avg_occ
-        @assert p != 0
-        entropy -= p * log(p)
+        @assert p >= 0
+        if p > 0
+            entropy -= p * log(p)
+        end
     end
 
-    @assert entropy != 0
     return entropy
 end
 
