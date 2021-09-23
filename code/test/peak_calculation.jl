@@ -76,3 +76,8 @@ end
     @test ismissing(res.peak_hour_start)
     @test ismissing(res.peak_hour_occ)
 end
+
+@testset "Periods imputed" begin
+    @test KFactorPeaks.periods_imputed([0, 100, 50]) == 2
+    @test ismissing(KFactorPeaks.periods_imputed([0, 50, missing]))
+end

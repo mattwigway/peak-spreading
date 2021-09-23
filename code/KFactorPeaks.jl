@@ -95,6 +95,12 @@ function occupancy_entropy(avg_occ)
     return entropy
 end
 
+# How many 5-minute periods were at least partially imputed from this sensor?
+# enforce Integer to make sure we avoid floating-point roundoff errors
+periods_imputed(pct_obs::Vector{<:Union{<:Integer, Missing}}) = any(ismissing.(pct_obs)) ? missing : sum(pct_obs .!= 100)
+
+
+
 function parse_file(file)
     outf = file[1:length(file) - 7] * "_peaks.parquet"
 
@@ -115,6 +121,7 @@ function parse_file(file)
                 :total_flow => sum => :total_flow,
                 :lane_type => first => :station_type,
                 :freeway_number => first => :freeway_number,
+                :pct_obs => periods_imputed => :periods_imputed,
                 :direction => first => :direction
             )
 
