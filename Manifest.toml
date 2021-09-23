@@ -629,9 +629,9 @@ uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 
 [[MKL_jll]]
 deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "Pkg"]
-git-tree-sha1 = "c253236b0ed414624b083e6b72bfe891fbd2c7af"
+git-tree-sha1 = "5455aef09b40e5020e1520f551fa3135040d4ed0"
 uuid = "856f044c-d86e-5d09-b602-aeab76dc8ba7"
-version = "2021.1.1+1"
+version = "2021.1.1+2"
 
 [[MacroTools]]
 deps = ["Markdown", "Random"]
@@ -911,6 +911,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Zlib_jll"]
 git-tree-sha1 = "9a0e24b81e3ce02c4b2eb855476467c7b93b8a8f"
 uuid = "76ed43ae-9a5d-5a62-8c75-30186b810ce8"
 version = "3.36.0+0"
+
+[[SafeTestsets]]
+deps = ["Test"]
+git-tree-sha1 = "36ebc5622c82eb9324005cc75e7e2cc51181d181"
+uuid = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
+version = "0.0.1"
 
 [[Scratch]]
 deps = ["Dates"]
