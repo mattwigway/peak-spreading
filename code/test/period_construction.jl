@@ -20,3 +20,21 @@ end
     @test Dates.day(s) >= 15
     @test Dates.day(s) <= 21
 end
+
+@testset "Day set materialization" begin
+    days = KFactors.period_days_for_year(2021)
+
+    @test all(days .>= Dates.Date(2021, 6, 15))
+    @test all(days .<= Dates.Date(2021, 7, 16))
+    @test in(Dates.Date(2021, 6, 15), days)
+    @test in(Dates.Date(2021, 6, 22), days)
+    @test in(Dates.Date(2021, 7, 15), days)
+    @test !any(Dates.dayofweek.(days) .== Dates.Saturday)
+    @test !any(Dates.dayofweek.(days) .== Dates.Sunday)
+    @test !in(Dates.Date(2021, 7, 5), days)  # Monday July 5 2021 was a holiday
+    @test !in(Dates.Date(2021, 7, 6), days)  # Day after a holiday should also be excluded
+
+    days2017 = KFactors.period_days_for_year(2017)
+    # Day before a holiday should be excluded. Test 2017 since the day before July 4 was a weekday.
+    @test !in(Dates.Date(2017, 7, 3), days2017)
+end

@@ -31,6 +31,17 @@ function period_for_year(year)
     return start, endd
 end
 
+function period_days_for_year(year)
+    start, endd = period_for_year(year)
+    days = filter(start:Dates.Day(1):endd) do d
+        Dates.dayofweek(d) != Dates.Saturday &&
+        Dates.dayofweek(d) != Dates.Sunday &&
+        !in(d, HOLIDAYS_Δ1)
+    end
+
+    return collect(days)
+end
+
 # TODO this function is painfully slow. Why? The join? Should we cache the join?
 function read_data(data_path, meta_path)
     sensor_meta = CSV.read(meta_path, DataFrame)
@@ -165,5 +176,5 @@ function permutation_test(data; n_permutations=DEFAULT_PERMUTATIONS)
     return (ptest=obs_diff, pval=pval, n_sensors=n_sensors)
 end
 
-export HOLIDAYS, HOLIDAYS_Δ1, read_data, permutation_test
+export HOLIDAYS, HOLIDAYS_Δ1, read_data, permutation_test, period_for_year, period_days_for_year
 end

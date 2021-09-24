@@ -14,8 +14,10 @@ using Missings
 using Logging
 using Random
 
+include("./KFactors.jl")
 include("./KFactorPeaks.jl")
 using .KFactorPeaks
+using .KFactors
 
 s = ArgParseSettings()
 
@@ -28,10 +30,30 @@ function main()
     parsed_args = parse_args(ARGS, s)
     data_dir = parsed_args["data_dir"]
     all_files = readdir(data_dir)
-    file_pattern = r"d[0-9]{2}_text_station_5min_[0-9]{4}_[0-9]{2}_[0-9]{2}.txt.gz"
+    file_pattern = r"^d[0-9]{2}_text_station_5min_([0-9]{4})_([0-9]{2})_([0-9]{2}).txt.gz$"
+
+    all_days = Set([
+        period_days_for_year(2021)...,
+        period_days_for_year(2020)...,
+        period_days_for_year(2019)...,
+        period_days_for_year(2018)...,
+        period_days_for_year(2017)...,
+        period_days_for_year(2016)...
+    ])
 
     # TODO why does D12 have one more file than D04?
-    candidate_files = collect(filter(f -> occursin(file_pattern, f), all_files))
+    candidate_files = collect(filter(all_files) do f
+        mat = match(file_pattern, f)
+        if isnothing(mat)
+            return false
+        else
+            y = parse(Int64, mat[1])
+            m = parse(Int64, mat[2])
+            d = parse(Int64, mat[3])
+            date = Dates.Date(y, m, d)
+            return in(date, all_days)
+        end
+    end)
 
     total_files = length(candidate_files)
     @info "Found $total_files candidate files"
