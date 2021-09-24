@@ -32,6 +32,8 @@ function main()
     all_files = readdir(data_dir)
     file_pattern = r"^d[0-9]{2}_text_station_5min_([0-9]{4})_([0-9]{2})_([0-9]{2}).txt.gz$"
 
+    Threads.nthreads() > 1 && error("multithreading causes deadlock in dataframe combine somehow. run with one thread.")
+
     all_days = Set([
         period_days_for_year(2021)...,
         period_days_for_year(2020)...,
@@ -58,7 +60,7 @@ function main()
     total_files = length(candidate_files)
     @info "Found $total_files candidate files"
 
-    Threads.@threads for file in ProgressBar(candidate_files)
+    for file in ProgressBar(candidate_files)
         parse_file(joinpath(data_dir, file))
     end
 end
