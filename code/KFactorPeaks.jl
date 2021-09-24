@@ -97,10 +97,10 @@ end
 
 # How many 5-minute periods were at least partially imputed from this sensor?
 # enforce Integer to make sure we avoid floating-point roundoff errors
-periods_imputed(pct_obs::Vector{<:Union{<:Integer, Missing}}) = any(ismissing.(pct_obs)) ? missing : sum(pct_obs .!= 100)
+periods_imputed(pct_obs::AbstractVector{<:Union{<:Integer, Missing}}) = any(ismissing.(pct_obs)) ? missing : sum(pct_obs .!= 100)
 
 # What was the longest amount of time (in minutes) that data were imputed from this sensor?
-function longest_imputed_time(times, pct_obs::Vector{<:Union{<:Integer, Missing}})
+function longest_imputed_time(times, pct_obs::AbstractVector{<:Union{<:Integer, Missing}})
     if any(ismissing.(times)) || any(ismissing.(pct_obs))
         return missing
     end
