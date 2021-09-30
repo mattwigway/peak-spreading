@@ -23,11 +23,12 @@ import os
 import sys
 from time import sleep
 from random import random
+import argparse
 
 DISTRICTS = [3, 4, 5, 6, 7, 8, 10, 11, 12]
 # DISTRICTS = [8, 10, 11, 12]
-# YEARS = [2016, 2017, 2018, 2019, 2020, 2021]
-YEARS = [2021]  # run script again to update data
+YEARS = [2016, 2017, 2018, 2019, 2020, 2021]
+#YEARS = [2021]  # run script again to update data
 
 logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s",
@@ -36,6 +37,11 @@ logging.basicConfig(
 )
 
 LOG = logging.getLogger(__name__)
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--type", help="Type of data to retrieve", default="station_5min")
+parser.add_argument("DATA_FOLDER", help="Output folder")
+args = parser.parse_args()
 
 if not "PEMS_USER" in environ or not "PEMS_PASSWORD" in environ:
     LOG.error("PEMS_USER and/or PEMS_PASSWORD not found in environment")
@@ -50,7 +56,7 @@ login = requests.post(
     data={"username": username, "password": pw, "redirect": "", "login": "Login"},
 )
 
-data_folder = sys.argv[1]
+data_folder = args.DATA_FOLDER
 LOG.info(f"Saving output to {data_folder}")
 
 if login.status_code == 200:
@@ -73,7 +79,7 @@ for district in DISTRICTS:
                 "district_id": district,
                 "geotag": "",
                 "yy": year,
-                "type": "station_5min",
+                "type": args.type,
                 "returnformat": "text",
             },
             cookies=sess,
