@@ -47,8 +47,10 @@ function read_data(data_path, meta_path)
     sensor_meta = CSV.read(meta_path, DataFrame)
     data = DataFrame(read_parquet(data_path))
 
+    select!(sensor_meta, [:ID, :District, :urban, :Lanes, :Latitude, :Longitude])
+
     # add sensor metadata to peak data
-    data = leftjoin(data, sensor_meta[:, [:ID, :District, :urban]], on=:station => :ID)
+    data = innerjoin(data, sensor_meta, on=:station => :ID)
 
     # reassemble the date and time fields
     data.date = Date.(data.year, data.month, data.day)
