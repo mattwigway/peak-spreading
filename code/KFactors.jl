@@ -110,8 +110,8 @@ function read_data(data_path, meta_path)
         .!in.(data.date, [HOLIDAYS_Δ1]) .&
         # and had observations in all periods
         data.present_in_all_periods .&
-        # and are mainline observations, i.e. not onramps etc
-        (data.station_type .== "ML"), :]
+        # and are mainline or conventional highway observations, i.e. not onramps etc
+        in.(data.station_type, [Set(["ML", "CH"])]), :]
 
     @info "After filtering, data has $(nrow(data)) rows"
     return data
