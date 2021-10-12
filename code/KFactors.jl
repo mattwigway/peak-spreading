@@ -42,8 +42,30 @@ function period_days_for_year(year)
     return collect(days)
 end
 
+const PERIODS = Dict(
+    "postpandemic" => [period_for_year(2021)],
+    "pandemic" => [period_for_year(2020)],
+    "prepandemic" => [
+        period_for_year(2019),
+        period_for_year(2018),
+        period_for_year(2017),
+        period_for_year(2016)
+    ]
+)
+
+function period_for_date(date)
+    for (name, dates) in PERIODS
+        for range in dates
+            if date >= range[1] && date <= range[2]
+                return name
+            end
+        end
+    end
+    return missing
+end
+
 # TODO this function is painfully slow. Why? The join? Should we cache the join?
-function read_data(data_path, meta_path)
+function read_data(data_path, meta_path; dropmissing=true)
     sensor_meta = CSV.read(meta_path, DataFrame)
     data = DataFrame(read_parquet(data_path))
 
@@ -59,28 +81,6 @@ function read_data(data_path, meta_path)
     select!(data, Not([:year, :month, :day, :peak_hour_start_hour, :peak_hour_start_minute]))
 
     # add a period field
-    periods = Dict(
-        "postpandemic" => [period_for_year(2021)],
-        "pandemic" => [period_for_year(2020)],
-        "prepandemic" => [
-            period_for_year(2019),
-            period_for_year(2018),
-            period_for_year(2017),
-            period_for_year(2016)
-        ]
-    )
-
-    function period_for_date(date)
-        for (name, dates) in periods
-            for range in dates
-                if date >= range[1] && date <= range[2]
-                    return name
-                end
-            end
-        end
-        return missing
-    end
-
     data.period = CategoricalArray(period_for_date.(data.date))
 
     # how many observations in each period?
@@ -104,14 +104,18 @@ function read_data(data_path, meta_path)
         in.(data.dayofweek, [Set(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"])]) .&
         # that are in one of the defined periods
         .!ismissing.(data.period) .&
-        # not missing occupancy data
-        coalesce.(isfinite.(data.peak_hour_occ), [false]) .&
         # are not holidays or adjacent
         .!in.(data.date, [HOLIDAYS_Δ1]) .&
         # and had observations in all periods
         data.present_in_all_periods .&
         # and are mainline or conventional highway observations, i.e. not onramps etc
         in.(data.station_type, [Set(["ML", "CH"])]), :]
+
+
+    if dropmissing
+        # not missing occupancy data
+        data = data[coalesce.(isfinite.(data.peak_hour_occ), [false]), :]
+    end
 
     @info "After filtering, data has $(nrow(data)) rows"
     return data
