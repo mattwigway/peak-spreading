@@ -15,6 +15,7 @@ using CategoricalArrays
 using Random
 
 include("holidays.jl")
+include("geo.jl")
 
 
 const DEFAULT_PERMUTATIONS = 1000
