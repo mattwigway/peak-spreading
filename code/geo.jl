@@ -42,7 +42,7 @@ end
 
 # return a function to extract the nearest nonmissing values for each sensor
 function find_nearest_values(distance_matrix, data, col)
-    return (stations, date) > begin
+    return (stations, date) -> begin
         station = stations[1]
         nearest_stations = @view distance_matrix[distance_matrix.from_sensor .== station, [:to_sensor, :distance]]
         @assert issorted(nearest_stations.distance)
