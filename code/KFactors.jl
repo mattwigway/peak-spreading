@@ -122,7 +122,7 @@ function read_data(data_path, meta_path; dropmissing=true)
         data = data[
             coalesce.(isfinite.(data.peak_hour_occ), [false]) .&
             # and had traffic
-            data.total_flow .> 0, :]
+            coalesce.(data.total_flow .> 0, [false]), :]
 
         # and don't have extreme occupancy
         # this does need to be done in a separate call, because we want it to be based
