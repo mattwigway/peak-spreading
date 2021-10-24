@@ -22,7 +22,7 @@ function read_day_file(path::String)
             # suppress warnings because per-lane information is in remaining columns, and since roads
             # do not all have the same number of lanes, not all rows have same number of columns. Ignore
             # warnings about that.
-            @suppress begin
+            with_logger(NullLogger()) do
                 data = CSV.read(stream, DataFrame, select=collect(1:12), header=cols, dateformat="mm/dd/yyyy HH:MM:SS")#, types=types)
             end
             
@@ -132,6 +132,7 @@ function parse_file(file)
             peaks = combine(
                 groupby(d, :station),
                 [:time, :avg_occ] => peak_hour_factor_binary => [:peak_hour_start, :peak_hour_occ],
+                [:time, :total_flow] => peak_hour_factor_binary => [:peak_flow_start, :peak_hour_flow],
                 :avg_occ => occupancy_entropy => :occ_entropy,
                 :avg_occ => sum => :total_occ,
                 :total_flow => sum => :total_flow,
@@ -151,10 +152,12 @@ function parse_file(file)
                 peaks[!, :day] .= Dates.day(d.timestamp[1])
                 peaks.peak_hour_start_hour = passmissing(Dates.hour).(peaks.peak_hour_start)
                 peaks.peak_hour_start_minute = passmissing(Dates.minute).(peaks.peak_hour_start)
+                peaks.peak_flow_start_hour = passmissing(Dates.hour).(peaks.peak_flow_start)
+                peaks.peak_flow_start_minute = passmissing(Dates.minute).(peaks.peak_flow_start)
                 peaks[!, :day_of_week] .= Dates.dayname(d.timestamp[1])
 
                 # remove the raw peak_hour_start field as parquet cannot handle times
-                select!(peaks, Not(:peak_hour_start))
+                select!(peaks, Not([:peak_hour_start, :peak_flow_start]))
 
                 # write out
                 write_parquet(outf * ".in_progress", peaks)

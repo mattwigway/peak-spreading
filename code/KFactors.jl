@@ -13,8 +13,10 @@ using StatsBase
 using Statistics
 using CategoricalArrays
 using Random
+using Printf
 
 include("holidays.jl")
+include("geo.jl")
 
 
 const DEFAULT_PERMUTATIONS = 1000
@@ -42,8 +44,30 @@ function period_days_for_year(year)
     return collect(days)
 end
 
+const PERIODS = Dict(
+    "postpandemic" => [period_for_year(2021)],
+    "pandemic" => [period_for_year(2020)],
+    "prepandemic" => [
+        period_for_year(2019),
+        period_for_year(2018),
+        period_for_year(2017),
+        period_for_year(2016)
+    ]
+)
+
+function period_for_date(date)
+    for (name, dates) in PERIODS
+        for range in dates
+            if date >= range[1] && date <= range[2]
+                return name
+            end
+        end
+    end
+    return missing
+end
+
 # TODO this function is painfully slow. Why? The join? Should we cache the join?
-function read_data(data_path, meta_path)
+function read_data(data_path, meta_path; dropmissing=true)
     sensor_meta = CSV.read(meta_path, DataFrame)
     data = DataFrame(read_parquet(data_path))
 
@@ -55,32 +79,13 @@ function read_data(data_path, meta_path)
     # reassemble the date and time fields
     data.date = Date.(data.year, data.month, data.day)
     data.peak_hour_start = passmissing(Time).(data.peak_hour_start_hour, data.peak_hour_start_minute)
+    data.peak_flow_start = passmissing(Time).(data.peak_flow_start_hour, data.peak_flow_start_minute)
+
     # drop columns no longer needed
-    select!(data, Not([:year, :month, :day, :peak_hour_start_hour, :peak_hour_start_minute]))
+    select!(data, Not([:year, :month, :day, :peak_hour_start_hour, :peak_hour_start_minute,
+        :peak_flow_start_hour, :peak_flow_start_minute]))
 
     # add a period field
-    periods = Dict(
-        "postpandemic" => [period_for_year(2021)],
-        "pandemic" => [period_for_year(2020)],
-        "prepandemic" => [
-            period_for_year(2019),
-            period_for_year(2018),
-            period_for_year(2017),
-            period_for_year(2016)
-        ]
-    )
-
-    function period_for_date(date)
-        for (name, dates) in periods
-            for range in dates
-                if date >= range[1] && date <= range[2]
-                    return name
-                end
-            end
-        end
-        return missing
-    end
-
     data.period = CategoricalArray(period_for_date.(data.date))
 
     # how many observations in each period?
@@ -104,14 +109,28 @@ function read_data(data_path, meta_path)
         in.(data.dayofweek, [Set(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"])]) .&
         # that are in one of the defined periods
         .!ismissing.(data.period) .&
-        # not missing occupancy data
-        coalesce.(isfinite.(data.peak_hour_occ), [false]) .&
         # are not holidays or adjacent
         .!in.(data.date, [HOLIDAYS_Δ1]) .&
         # and had observations in all periods
         data.present_in_all_periods .&
-        # and are mainline observations, i.e. not onramps etc
-        (data.station_type .== "ML"), :]
+        # and are mainline or conventional highway observations, i.e. not onramps etc
+        in.(data.station_type, [Set(["ML", "CH"])]), :]
+
+
+    if dropmissing
+        # not missing occupancy data
+        data = data[
+            coalesce.(isfinite.(data.peak_hour_occ), [false]) .&
+            # and had traffic
+            coalesce.(data.total_flow .> 0, [false]), :]
+
+        # and don't have extreme occupancy
+        # this does need to be done in a separate call, because we want it to be based
+        # on the percentiles of the _filtered_ dataset
+        max_occ = percentile(data.peak_hour_occ, 99)
+        @info @sprintf "Removing sensors days with peak-hour occ above 99th percentile (%.2f%%)" max_occ
+        data = data[data.peak_hour_occ .≤ max_occ, :]
+    end
 
     @info "After filtering, data has $(nrow(data)) rows"
     return data
@@ -131,7 +150,10 @@ function cumulative_dist(v, w)
     return sorted, cumsum(w[sorter]) / sum(w)
 end
 
-function permute!(data, n_permutations)
+const PREPANDEMIC = 1
+const POSTPANDEMIC = 2
+
+function permute(data, n_permutations, col)
     @assert all(in.(data.period, [Set(["prepandemic", "postpandemic"])])) "Permute assumes only pre and post-pandemic data are present"
 
     output = zeros(Float64, (2, n_permutations))
@@ -139,34 +161,44 @@ function permute!(data, n_permutations)
     
     rng = MersenneTwister(SEED)
     
-    period_map = Dict()
-    sizehint!(period_map, nrow(dates_and_periods))
+    dates = dates_and_periods.date
+    periods = dates_and_periods.period
     
-    for permutation in 1:n_permutations
-        shuffle!(rng, dates_and_periods.period)
-
-        for i in 1:nrow(dates_and_periods)
-            period_map[dates_and_periods[i, :date]] = dates_and_periods[i, :period]
+    int_period::Vector{Int64} = map(periods) do period
+        if period == "prepandemic"
+            return PREPANDEMIC
+        elseif period == "postpandemic"
+            return POSTPANDEMIC
         end
-
-        data.permuted_period = map(d -> period_map[d], data.date)
-
-        means = combine(groupby(data, :permuted_period), :peak_hour_occ => mean => :mean_peak_occ)
-
-        @assert nrow(means) == 2
-
-        output[1, permutation] = means[means.permuted_period .== "prepandemic", :mean_peak_occ][1]
-        output[2, permutation] = means[means.permuted_period .== "postpandemic", :mean_peak_occ][1]
+    end
+    
+    period_for_day = Dict{Date, Int64}()
+    for permutation in 1:n_permutations
+        shuffle!(rng, int_period)
+        
+        for i in 1:length(dates)
+            period_for_day[dates[i]] = int_period[i]
+        end
+       
+        n = zeros(Int64, 2)
+        
+        for row in zip(data.date::Vector{Date}, data[!, col]::Vector{Union{Missing, Float64}})
+            period = period_for_day[row[1]]
+            output[period, permutation] += row[2]
+            n[period] += 1
+        end
+        
+        output[:, permutation] ./= n
     end
     
     return output
 end
 
-function permutation_test(data; n_permutations=DEFAULT_PERMUTATIONS)
-    means = permute!(data, n_permutations)
-    sampling_dist_diff_means = means[2, :] .- means[1, :]
-    obs_means = combine(groupby(data, :period), :peak_hour_occ => mean)
-    obs_diff = obs_means[obs_means.period .== "postpandemic", :peak_hour_occ_mean][1] - obs_means[obs_means.period .== "prepandemic", :peak_hour_occ_mean][1]
+function permutation_test(data, col; n_permutations=DEFAULT_PERMUTATIONS)
+    means = permute(data, n_permutations, col)
+    sampling_dist_diff_means = means[POSTPANDEMIC, :] .- means[PREPANDEMIC, :]
+    obs_means = combine(groupby(data, :period), col => mean => :mean)
+    obs_diff = obs_means[obs_means.period .== "postpandemic", :mean][1] - obs_means[obs_means.period .== "prepandemic", :mean][1]
     n_sensors = length(unique(data.station))
     
     if obs_diff <= mean(sampling_dist_diff_means)

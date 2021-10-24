@@ -38,3 +38,19 @@ end
     # Day before a holiday should be excluded. Test 2017 since the day before July 4 was a weekday.
     @test !in(Dates.Date(2017, 7, 3), days2017)
 end
+
+@testset "Period for date" begin
+    @test KFactors.period_for_date(Date(2021, 6, 16)) == "postpandemic"
+    @test KFactors.period_for_date(Date(2020, 7, 7)) == "pandemic"
+    @test KFactors.period_for_date(Date(2019, 7, 5)) == "prepandemic"
+    @test KFactors.period_for_date(Date(2018, 6, 29)) == "prepandemic"
+    @test KFactors.period_for_date(Date(2017, 7, 9)) == "prepandemic"
+    @test KFactors.period_for_date(Date(2016, 6, 23)) == "prepandemic"
+    @test KFactors.period_for_date(Date(2021, 2, 16)) |> ismissing
+    @test KFactors.period_for_date(Date(2020, 4, 7)) |> ismissing
+    @test KFactors.period_for_date(Date(2019, 3, 5)) |> ismissing
+    @test KFactors.period_for_date(Date(2018, 5, 29)) |> ismissing
+    @test KFactors.period_for_date(Date(2017, 3, 9)) |> ismissing
+    @test KFactors.period_for_date(Date(2016, 9, 19)) |> ismissing
+    @test KFactors.period_for_date(Date(2015, 6, 28)) |> ismissing
+end

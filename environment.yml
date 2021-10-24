@@ -8,3 +8,6 @@ dependencies:
   - requests
   - black
   - jupyterlab
+  - pip
+  - pip:
+    - nbdime
