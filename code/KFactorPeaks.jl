@@ -88,7 +88,7 @@ function occupancy_entropy(avg_occ)
     for p in norm_avg_occ
         @assert p >= 0
         if p > 0
-            entropy -= p * log(p)
+            entropy -= p * log2(p)
         end
     end
 
