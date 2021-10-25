@@ -9,7 +9,22 @@ function normalize(v)
     return v ./ sum(v)
 end
 
-normentropy = entropy ∘ normalize
+function entropy2(p::AbstractArray{T}) where T<:Real
+    # Modified directly from the Julia source code
+    # https://github.com/JuliaStats/StatsBase.jl/blob/42feefb84aa81d9f8918500ecf159dbee5bcb91f/src/scalarstats.jl#L396-L401
+    s = zero(T)
+    z = zero(T)
+    for i = 1:length(p)
+        @inbounds pi = p[i]
+        if pi > z
+            s += pi * log2(pi)
+        end
+    end
+    return -s
+end
+
+
+normentropy = entropy2 ∘ normalize
 
 @testset "Entropy" begin
     # sanity check
