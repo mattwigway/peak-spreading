@@ -36,25 +36,28 @@ function read_day_file(path::String)
     end
 end
 
-function peak_hour_factor_binary(time, avg_occ)
-    if any(ismissing.(avg_occ)) || any(ismissing.(time))
-        return (peak_hour_start=missing, peak_hour_occ=missing)
+function peak_hour_factor_binary(time, avg_occ, flow)
+    if any(ismissing.(avg_occ)) || any(ismissing.(time)) || any(ismissing.(flow))
+        return (peak_hour_start=missing, peak_hour_occ=missing, peak_hour_flow=missing)
     end
     
     sorter = sortperm(time)
     sorted_occ = avg_occ[sorter]
-    sorted_time = time[sorter]    
+    sorted_time = time[sorter]
+    sorted_flow = flow[sorter]  
     if length(sorted_occ) != (24 * 12)  # 12 5 minute periods per hour, 24 hours per day
-        return (peak_hour_start=missing, peak_hour_occ=missing)
+        return (peak_hour_start=missing, peak_hour_occ=missing, peak_hour_flow=missing)
     end
             
-    highest_peak = -1.0
+    highest_peak_occ = -1.0
+    highest_peak_flow = -1.0
     start_of_highest_peak = missing
     for i in 1:(23 * 12)
         # + 11 because i:i + 12 has length 13, is one hour and 5 minutes
         peak_amt = sum(sorted_occ[i:i + 11])
-        if peak_amt > highest_peak
-            highest_peak = peak_amt
+        if peak_amt > highest_peak_occ
+            highest_peak_occ = peak_amt
+            highest_peak_flow = sum(sorted_flow[i:i+11])
             start_of_highest_peak = sorted_time[i]
         end
     end
@@ -62,8 +65,9 @@ function peak_hour_factor_binary(time, avg_occ)
     @assert !ismissing(start_of_highest_peak)
     
     # normalize to total traffic for day
-    phf = highest_peak / sum(avg_occ)
-    return (peak_hour_start=start_of_highest_peak, peak_hour_occ=phf)
+    highest_peak_occ /= sum(avg_occ)
+    highest_peak_flow /= sum(flow)
+    return (peak_hour_start=start_of_highest_peak, peak_hour_occ=highest_peak_occ, peak_hour_flow=highest_peak_flow)
 end
 
 # Really this is just an entropy function, but we name it more specifically
@@ -131,8 +135,7 @@ function parse_file(file)
 
             peaks = combine(
                 groupby(d, :station),
-                [:time, :avg_occ] => peak_hour_factor_binary => [:peak_hour_start, :peak_hour_occ],
-                [:time, :total_flow] => peak_hour_factor_binary => [:peak_flow_start, :peak_hour_flow],
+                [:time, :avg_occ, :total_flow] => peak_hour_factor_binary => [:peak_hour_start, :peak_hour_occ, :peak_hour_flow],
                 :avg_occ => occupancy_entropy => :occ_entropy,
                 :avg_occ => sum => :total_occ,
                 :total_flow => sum => :total_flow,
@@ -152,12 +155,10 @@ function parse_file(file)
                 peaks[!, :day] .= Dates.day(d.timestamp[1])
                 peaks.peak_hour_start_hour = passmissing(Dates.hour).(peaks.peak_hour_start)
                 peaks.peak_hour_start_minute = passmissing(Dates.minute).(peaks.peak_hour_start)
-                peaks.peak_flow_start_hour = passmissing(Dates.hour).(peaks.peak_flow_start)
-                peaks.peak_flow_start_minute = passmissing(Dates.minute).(peaks.peak_flow_start)
                 peaks[!, :day_of_week] .= Dates.dayname(d.timestamp[1])
 
                 # remove the raw peak_hour_start field as parquet cannot handle times
-                select!(peaks, Not([:peak_hour_start, :peak_flow_start]))
+                select!(peaks, Not(:peak_hour_start))
 
                 # write out
                 write_parquet(outf * ".in_progress", peaks)

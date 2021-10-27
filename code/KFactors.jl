@@ -79,7 +79,6 @@ function read_data(data_path, meta_path; dropmissing=true)
     # reassemble the date and time fields
     data.date = Date.(data.year, data.month, data.day)
     data.peak_hour_start = passmissing(Time).(data.peak_hour_start_hour, data.peak_hour_start_minute)
-    data.peak_flow_start = passmissing(Time).(data.peak_flow_start_hour, data.peak_flow_start_minute)
 
     # drop columns no longer needed
     select!(data, Not([:year, :month, :day, :peak_hour_start_hour, :peak_hour_start_minute,
