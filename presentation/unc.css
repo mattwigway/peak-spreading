@@ -25,12 +25,11 @@ section.columns {
     display: flex;
     flex-direction: column;
     flex-wrap: wrap;
-    justify-content: center;
-    height: 840px;
+    justify-items: center;
 }
 
-section.columns h1 {
-    justify-self: start !important;
+section.columns > h1:nth-child(1) {
+    margin-bottom: auto;
 }
 
 section.two.columns * {
@@ -41,10 +40,40 @@ section.three.columns * {
     max-width: 366px !important;
 }
 
-/* new column at br */
-section.columns h6 {
+section.two.thirds.columns * {
+    max-width: 732px;
+}
+
+section.two.thirds.columns h6:nth-child(2) ~ * {
+    max-width: 366px;
+}
+
+section.one.third.columns * {
+    max-width: 366px;
+}
+
+section.one.third.columns h6:nth-child(2) ~ * {
+    max-width: 732px;
+}
+
+section.columns h6:nth-child(odd) {
+    margin-top: auto;
+}
+
+section.columns h6:nth-child(even) {
+    width: 0px;
     flex-basis: 100%;
-    width: 0px
+    visibility: hidden;
+}
+
+section.references p {
+    font-size: medium;
+    margin-left: 1em;
+    text-indent: -1em;
+}
+
+section.center :not(h1:first-child) {
+    text-align: center;
 }
 
 /* move title to top. this would be easier with pos: absolute but messes up accessibility */
@@ -100,10 +129,6 @@ section:before {
     background-size: auto 2rem;
     background-position: bottom left;
     content: ""
-}
-
-section.blank, section.dark.blank {
-    background-image: none
 }
 
 /* Massive inline images below here */
