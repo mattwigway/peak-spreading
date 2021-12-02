@@ -44,7 +44,8 @@ section.two.thirds.columns * {
     max-width: 732px;
 }
 
-section.two.thirds.columns h6:nth-child(2) ~ * {
+/* ~ * selects all siblings, but we want to select chilren of siblings (at any depth, hence "~ * *" */
+section.two.thirds.columns h6:nth-of-type(2) ~ *, section.two.thirds.columns h6:nth-of-type(2) ~ * * {
     max-width: 366px;
 }
 
@@ -52,7 +53,7 @@ section.one.third.columns * {
     max-width: 366px;
 }
 
-section.one.third.columns h6:nth-child(2) ~ * {
+section.one.third.columns h6:nth-of-type(2) ~ *, section.one.third.columns h6:nth-of-type(2) ~ * * {
     max-width: 732px;
 }
 
