@@ -81,6 +81,7 @@ function read_data(data_path, meta_path; dropmissing=true)
     data.peak_hour_start = passmissing(Time).(data.peak_hour_start_hour, data.peak_hour_start_minute)
 
     # drop columns no longer needed
+
     select!(data, Not([:year, :month, :day, :peak_hour_start_hour, :peak_hour_start_minute]))
 
     # add a period field
