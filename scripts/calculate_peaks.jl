@@ -13,11 +13,7 @@ using DataFrames
 using Missings
 using Logging
 using Random
-
-include("./KFactors.jl")
-include("./KFactorPeaks.jl")
-using .KFactorPeaks
-using .KFactors
+using KFactors
 
 s = ArgParseSettings()
 

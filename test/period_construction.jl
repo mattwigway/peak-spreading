@@ -2,8 +2,7 @@
 
 using Dates
 using Test
-include("../KFactors.jl")
-using .KFactors
+using KFactors
 
 @testset "Period construction for 2021" begin
     @test all(KFactors.period_for_year(2021) .== [Date(2021, 06, 15), Date(2021, 07, 17)])
