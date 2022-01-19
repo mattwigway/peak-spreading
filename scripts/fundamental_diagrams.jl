@@ -41,18 +41,23 @@ function main(args)
     res_channel = Channel{Union{DataFrame, Nothing}}()
 
     # start graph generation thread
-    figtask = Threads.@spawn assemble_graph(res_channel)
-
-    @info "spawned"
+    figtask = Threads.@spawn assemble_graph(res_channel, Progress(length(files)))
 
     # start reader thread
+    tasks = Vector{Task}()
+    sizehint!(tasks, length(files))
     Threads.@spawn begin
-        @showprogress for file in files
-        # allow switching to other task while waiting on IO
-            day = process_file(file, geo)
-            isnothing(day) || put!(res_channel, day)
+        for file in files
+            # Files read sequentially, avoid disk thrash
+            day = KFactors.read_day_file(file)
+            task = Threads.@spawn begin
+                proc = process_file($day, geo)
+                put!(res_channel, proc)
+            end
+            push!(tasks, task)
         end
-        put!(res_channel, nothing)  # signal that we're done, after all async tasks completed
+        wait.(tasks)
+        put!(res_channel, nothing)  # signal that we're done, after all tasks completed
     end
 
     figure = fetch(figtask)
@@ -61,11 +66,7 @@ function main(args)
     figure
 end    
 
-function process_file(file, geo)
-    day = KFactors.read_day_file(file)
-
-    isnothing(day) && return nothing
-
+function process_file(day, geo)
     day = innerjoin(day, geo, on=:station=>:ID)
 
     day.per_lane_flow_vph = day.total_flow ./ day.Lanes .* 12; # 12 5-minute periods per hour, convert to veh/hour
@@ -81,7 +82,7 @@ function process_file(file, geo)
     return day
 end
 
-function assemble_graph(channel)
+function assemble_graph(channel, p)
     @info "assembly running"
     Theme(fontsize=40) |> set_theme!
 
@@ -98,7 +99,12 @@ function assemble_graph(channel)
         scatter!(density_speed, day.vehdens, day.avg_speed_mph, markersize=0.01, alpha=0.75, color=CAROLINA_BLUE)
         scatter!(speed_flow, day.avg_speed_mph, day.per_lane_flow_vph, markersize=0.01, alpha=0.75, color=CAROLINA_BLUE)
         scatter!(density_flow, day.vehdens, day.per_lane_flow_vph, markersize=0.01, alpha=0.75, color=CAROLINA_BLUE)
+
+        next!(p)
     end
+
+    # NB not exactly right, will finish! before progress bar completely done due to empty day files
+    finish!(p)
 
     fig
 end
