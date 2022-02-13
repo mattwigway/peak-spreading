@@ -7,7 +7,7 @@
 
 # Stick these in a submodule to organize the namespace
 module VDF
-function bpr_demand_to_speed(ff_speed, demand, capacity=2400; α=0.6, βff=5, βcongested=8)
+function bpr_demand_to_speed(ff_speed, demand; capacity=2400, α=0.6, βff=5, βcongested=8)
     # this is the function written out in the SCAG documentation
     # note that speed can be miles per hour, km per hour, knots, furlongs per fortnight, etc - the
     # return value will be in the same units.
@@ -31,5 +31,18 @@ function bpr_speed_to_demand(ff_speed_mph, obs_speed_mph; α=0.6, βff=5, βcong
     β = inner > 1 ? βcongested : βff
     
     capacity * inner ^ (1 / β) 
+end
+
+function bpr_speed_flow_to_demand(ff_speed, speed, flow, capacity)
+    est_demand = bpr_speed_to_demand(ff_speed, speed, capacity=capacity)
+    if est_demand < capacity
+        # at low levels of demand, the speed-demand function is pretty flat, so slight
+        # speed fluctuations could cause large estimated demand functions. In uncongested
+        # flow situations, the actual flow is going to be a better measure of demand
+        # than the speed.
+        flow
+    else
+        est_demand
+    end
 end
 end
