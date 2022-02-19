@@ -25,3 +25,15 @@ end
     # congested flow should return estimated demand
     @test VDF.bpr_speed_flow_to_demand(70, 40, 4600, 4800) > 4600
 end
+
+@testset "Basic freeway capacity" begin
+    @test VDF.basic_capacity_per_lane(55) == 2250
+    @test VDF.basic_capacity_per_lane(57.5) == 2275
+    @test VDF.basic_capacity_per_lane(60) == 2300
+    @test VDF.basic_capacity_per_lane(65) == 2350
+    @test VDF.basic_capacity_per_lane(70) == 2400
+    @test VDF.basic_capacity_per_lane(72) == 2400
+    @test VDF.basic_capacity_per_lane(75) == 2400
+    @test_throws DomainError VDF.basic_capacity_per_lane(50)
+    @test_throws DomainError VDF.basic_capacity_per_lane(80)
+end
