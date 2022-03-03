@@ -22,8 +22,8 @@ s = ArgParseSettings()
         help = "Directory with data"
 end
 
-function main()
-    parsed_args = parse_args(ARGS, s)
+function main(args)
+    parsed_args = parse_args(args, s)
     data_dir = parsed_args["data_dir"]
     all_files = readdir(data_dir)
     file_pattern = r"^d[0-9]{2}_text_station_5min_([0-9]{4})_([0-9]{2})_([0-9]{2}).txt.gz$"
@@ -49,17 +49,30 @@ function main()
             m = parse(Int64, mat[2])
             d = parse(Int64, mat[3])
             date = Dates.Date(y, m, d)
-            return in(date, all_days)
+            return true #in(date, all_days)
         end
     end)
+
+    ffs = CSV.read(joinpath(Base.source_dir(), "../data/free_flow_speeds.csv"), DataFrame)
+
+    # if capacity is less than 1000 pc/lane/hour, make it 1000 pc/lane/hour
+
+    # low_cap = ffs.cap99 .< ffs.lanes .* 1000
+    # @warn "$(mean(low_cap) * 100)% have unreasonable low capacities < 1000 pc/lane/hr"
+    # ffs.capacity = max.(ffs.cap99, ffs.lanes .* 1000)
+    ffs[ffs.count_cap .== 0, :cap99] = ffs[ffs.count_cap .== 0, :lanes] .* 1000
+    ffs[ffs.count_ffs .== 0, :pct95] .= 65
+
+    ffs[ffs.cap99 .< ffs.lanes .* 1000, :cap99] = ffs[ffs.cap99 .< ffs.lanes .* 1000, :lanes] .* 1000
+
 
     total_files = length(candidate_files)
     @info "Found $total_files candidate files"
 
     for file in ProgressBar(candidate_files)
-        parse_file(joinpath(data_dir, file))
+        parse_file(joinpath(data_dir, file), ffs)
     end
 end
 
-main()
+main(ARGS)
 #parse_file("/Volumes/Pheasant Ridge/pems/d12_text_station_5min_2021_01_03.txt.gz")

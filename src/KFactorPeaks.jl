@@ -24,8 +24,8 @@ function read_day_file(path::String)
 end
 
 function peak_hour_factor_binary(time, avg_occ, flow)
-    if any(ismissing.(avg_occ)) || any(ismissing.(time)) || any(ismissing.(flow))
-        return (peak_hour_start=missing, peak_hour_occ=missing, peak_hour_flow=missing)
+    if any(isnodata.(avg_occ)) || any(isnodata.(time)) || any(isnodata.(flow))
+        return (peak_hour_start=missing, peak_hour_occ=missing, peak_hour_occ_avg=missing, peak_hour_flow=missing)
     end
     
     sorter = sortperm(time)
@@ -33,7 +33,7 @@ function peak_hour_factor_binary(time, avg_occ, flow)
     sorted_time = time[sorter]
     sorted_flow = flow[sorter]  
     if length(sorted_occ) != (24 * 12)  # 12 5 minute periods per hour, 24 hours per day
-        return (peak_hour_start=missing, peak_hour_occ=missing, peak_hour_flow=missing)
+        return (peak_hour_start=missing, peak_hour_occ=missing, peak_hour_occ_avg=missing, peak_hour_flow=missing)
     end
             
     highest_peak_occ = -1.0
@@ -49,18 +49,39 @@ function peak_hour_factor_binary(time, avg_occ, flow)
         end
     end
     
-    @assert !ismissing(start_of_highest_peak)
+    @assert !isnodata(start_of_highest_peak)
     
     # normalize to total traffic for day
+    peak_occ_avg = highest_peak_occ / 12
     highest_peak_occ /= sum(avg_occ)
     highest_peak_flow /= sum(flow)
-    return (peak_hour_start=start_of_highest_peak, peak_hour_occ=highest_peak_occ, peak_hour_flow=highest_peak_flow)
+    return (peak_hour_start=start_of_highest_peak, peak_hour_occ=highest_peak_occ, peak_hour_occ_avg=peak_occ_avg, peak_hour_flow=highest_peak_flow)
+end
+
+function peak_hour_demand(time, speed, flow, free_flow_speed, capacity)
+    if any(isnodata.(time) .|| isnodata.(speed) .|| isnodata.(flow) .|| isnodata.(free_flow_speed) .|| isnodata.(capacity) .||
+        (free_flow_speed == 0) .|| (capacity .== 0))
+        return (demand_peak_hour_start=missing, peak_hour_demand=missing, peak_hour_demand_avg=missing, demand_peak_hour_flow=missing)
+    else
+        # this is hourly demand. Seems a little sketchy to sum it up over an hour to compute a proportion, but it is a constant
+        # multiplier so it will drop out when peak_hour_demand is calculated.
+        demand = VDF.bpr_speed_flow_to_demand.(free_flow_speed, min.(speed, free_flow_speed), flow .* 12, capacity)
+
+        if !all(demand .≥ flow)
+            @warn "Demand not greater than flow!" demand[.!(demand .≥ flow)][1] flow[.!(demand .≥ flow)][1] speed[.!(demand .≥ flow)][1] free_flow_speed[.!(demand .≥ flow)][1] capacity[.!(demand .≥ flow)][1]
+            demand[demand .< flow] = flow[demand .< flow]
+        end
+
+        res = peak_hour_factor_binary(time, demand, flow)
+        return (demand_peak_hour_start=res.peak_hour_start, peak_hour_demand=res.peak_hour_occ,
+            peak_hour_demand_avg=res.peak_hour_occ_avg, demand_peak_hour_flow=res.peak_hour_flow)
+    end
 end
 
 # Really this is just an entropy function, but we name it more specifically
 # because we're only using it for occupancy
 function occupancy_entropy(avg_occ)
-    if any(ismissing.(avg_occ))
+    if any(isnodata.(avg_occ))
         return missing
     end
     
@@ -88,11 +109,11 @@ end
 
 # How many 5-minute periods were at least partially imputed from this sensor?
 # enforce Integer to make sure we avoid floating-point roundoff errors
-periods_imputed(pct_obs::AbstractVector{<:Union{<:Integer, Missing}}) = any(ismissing.(pct_obs)) ? missing : sum(pct_obs .!= 100)
+periods_imputed(pct_obs::AbstractVector{<:Union{<:Integer, Missing}}) = any(isnodata.(pct_obs)) ? missing : sum(pct_obs .!= 100)
 
 # What was the longest amount of time (in minutes) that data were imputed from this sensor?
 function longest_imputed_time(times, pct_obs::AbstractVector{<:Union{<:Integer, Missing}})
-    if any(ismissing.(times)) || any(ismissing.(pct_obs))
+    if any(isnodata.(times)) || any(isnodata.(pct_obs))
         return missing
     end
 
@@ -108,7 +129,7 @@ function longest_imputed_time(times, pct_obs::AbstractVector{<:Union{<:Integer, 
     return max(runlength[vals]...) * 5
 end
 
-function parse_file(file)
+function parse_file(file, ffs)
     outf = file[1:length(file) - 7] * "_peaks.parquet"
 
     #println(outf)
@@ -119,10 +140,12 @@ function parse_file(file)
         if isnothing(d)
             @error "Failed to read $file"
         else
+            d = leftjoin(d, ffs[:,[:id, :pct95, :cap99]], on=:station=>:id)
 
             peaks = combine(
                 groupby(d, :station),
-                [:time, :avg_occ, :total_flow] => peak_hour_factor_binary => [:peak_hour_start, :peak_hour_occ, :peak_hour_flow],
+                [:time, :avg_occ, :total_flow] => peak_hour_factor_binary => [:peak_hour_start, :peak_hour_occ, :peak_hour_occ_avg, :peak_hour_flow],
+                [:time, :avg_speed_mph, :total_flow, :pct95, :cap99] => peak_hour_demand => [:demand_peak_hour_start, :peak_hour_demand, :peak_hour_demand_avg, :demand_peak_hour_flow],
                 :avg_occ => occupancy_entropy => :occ_entropy,
                 :avg_occ => sum => :total_occ,
                 :total_flow => sum => :total_flow,
@@ -133,7 +156,7 @@ function parse_file(file)
                 :direction => first => :direction
             )
 
-            if all(ismissing.(peaks.peak_hour_occ))
+            if all(isnodata.(peaks.peak_hour_occ))
                 @warn "$(file) has no observations"
             else
                 # same for all observations
@@ -142,10 +165,23 @@ function parse_file(file)
                 peaks[!, :day] .= Dates.day(d.timestamp[1])
                 peaks.peak_hour_start_hour = passmissing(Dates.hour).(peaks.peak_hour_start)
                 peaks.peak_hour_start_minute = passmissing(Dates.minute).(peaks.peak_hour_start)
+                peaks.demand_peak_hour_start_hour = passmissing(Dates.hour).(peaks.demand_peak_hour_start)
+                peaks.demand_peak_hour_start_minute = passmissing(Dates.minute).(peaks.demand_peak_hour_start)
                 peaks[!, :day_of_week] .= Dates.dayname(d.timestamp[1])
 
                 # remove the raw peak_hour_start field as parquet cannot handle times
-                select!(peaks, Not(:peak_hour_start))
+                select!(peaks, Not([:peak_hour_start, :demand_peak_hour_start]))
+
+                # convert pooledarrays to bona fide strings
+                peaks.direction = string.(peaks.direction)
+                peaks.station_type = string.(peaks.station_type)
+
+                all_missing_cols = [c for c in names(peaks) if all(isnodata.(peaks[!, c]))]
+                if length(all_missing_cols) > 0
+                    # TODO why?
+                    @warn "File $file, some cols entirely missing in output" all_missing_cols
+                    select!(peaks, Not(all_missing_cols))
+                end
 
                 # write out
                 write_parquet(outf * ".in_progress", peaks)
@@ -156,3 +192,5 @@ function parse_file(file)
         end
     end
 end
+
+isnodata(x) = ismissing(x) || isnothing(x) || (x isa Number && isnan(x))

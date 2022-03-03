@@ -33,12 +33,17 @@ function main()
     pbar = ProgressBar(candidate_files)
     for file in pbar
         set_multiline_postfix(pbar, file)
-        push!(tables, DataFrame(read_parquet(joinpath(data_dir, file))))
+        pqt = read_parquet(joinpath(data_dir, file))
+        push!(tables, DataFrame(pqt))
+        close(pqt)
     end
 
     @printf "Read %d files, concatenating\n" length(tables)
 
-    all_tables = vcat(tables...)
+    # some tables don't have all columns because some were completely missing and Parquet
+    # can't serialize completely missing columns so they are just left out of the file.
+    # cols = :union prevents an error in this case.
+    all_tables = vcat(tables...; cols=:union)
 
     write_parquet(output_file, all_tables)
 
