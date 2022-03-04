@@ -83,6 +83,7 @@ function process_file(day, geo, result)
         .&& .!ismissing.(day.total_flow)
         .&& .!ismissing.(day.avg_occ)), :]
 
+    # (veh/5 min) / (miles / 5 min) = (veh / mile)
     day.vehdens = day.total_flow ./ (day.avg_speed_mph ./ 12) ./ day.Lanes;
 
     for row in Tables.namedtupleiterator(day)
