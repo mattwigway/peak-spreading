@@ -34,6 +34,6 @@ end
     @test VDF.basic_capacity_per_lane(70) == 2400
     @test VDF.basic_capacity_per_lane(72) == 2400
     @test VDF.basic_capacity_per_lane(75) == 2400
-    @test_throws DomainError VDF.basic_capacity_per_lane(50)
-    @test_throws DomainError VDF.basic_capacity_per_lane(80)
+    @test_throws BoundsError VDF.basic_capacity_per_lane(50)
+    @test_throws BoundsError VDF.basic_capacity_per_lane(80)
 end
