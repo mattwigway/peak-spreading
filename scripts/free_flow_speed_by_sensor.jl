@@ -7,7 +7,7 @@
 # free-flow speed (adverse weather conditions, crashes, etc). Few things are likely to raise the free flow speed,
 # as it is theoretically the maximum speed generally attained on the road.
 
-using OnlineStats, KFactors, ProgressMeter, CSV, DataFrames, ArgParse, Dates
+using OnlineStats, KFactors, ProgressMeter, CSV, DataFrames, ArgParse, Dates, Logging
 
 s = ArgParseSettings()
 
@@ -19,7 +19,7 @@ end
 function update_ffs(day, results)
     for row in day
         # flow in 5 minute period is 1/12 hourly flow
-        if row.pct_obs == 100 && !ismissing(row.avg_speed_mph) && haskey(results, row.station)
+        if row.pct_obs == 100 && !ismissing(row.avg_speed_mph) && !ismissing(row.total_flow) && row.lane_type == "ML" && haskey(results, row.station)
             sensor = results[row.station]
             # <1000 veh/lane/hr is free flow
             # data are in 5 minute bins
@@ -27,6 +27,8 @@ function update_ffs(day, results)
                 # update quantiles
                 fit!(sensor.ffs, row.avg_speed_mph)
             end
+
+            fit!(sensor.capacity, row.total_flow * 12)
         end
     end
 end
@@ -58,18 +60,19 @@ function main()
             m = parse(Int64, mat[2])
             d = parse(Int64, mat[3])
             date = Dates.Date(y, m, d)
-            return in(date, all_days)
+            return true #in(date, all_days)
         end
     end)
+    #candidate_files = all_files
 
-    results = Dict{Int64, NamedTuple{(:lanes, :ffs), Tuple{Int64, OnlineStats.Series}}}()
+    results = Dict{Int64, NamedTuple{(:lanes, :ffs, :capacity), Tuple{Int64, Series, Series}}}()
 
     # first, read meta information
     meta = CSV.read("data/sensor_meta_geo.csv", DataFrame)
 
     map(zip(meta.ID, meta.Lanes)) do row
         id, lanes = row
-        results[id] = (lanes=lanes, ffs=Series(Counter(), Quantile([0.5, 0.75, 0.95])))
+        results[id] = (lanes=lanes, ffs=Series(Counter(), Quantile([0.5, 0.75, 0.95])), capacity=Series(Counter(), Quantile([0.9, 0.95, 0.975, 0.99])))
     end
 
     total_files = length(candidate_files)
@@ -77,14 +80,20 @@ function main()
 
     @showprogress for file in candidate_files
         day = KFactors.read_day_file(joinpath(data_dir, file))
-        update_ffs(Tables.namedtupleiterator(day), results)
+        if !isnothing(day)
+            update_ffs(Tables.namedtupleiterator(day), results)
+        else
+            @warn "File $file could not be read"
+        end
     end
 
     df = DataFrame(map(collect(pairs(results))) do sensor
         id, rec = sensor
         val = value(rec.ffs)
+        cap = value(rec.capacity)
 
-        (id=id, lanes=rec.lanes, count=val[1], median=val[2][1], pct75=val[2][2], pct95=val[2][3])
+        (id=id, lanes=rec.lanes, count_ffs=val[1], median=val[2][1], pct75=val[2][2], pct95=val[2][3],
+            count_cap=cap[1], cap90=cap[2][1], cap95=cap[2][2], cap975=cap[2][3], cap99=cap[2][4])
     end)
 
     CSV.write("data/free_flow_speeds.csv", df)
