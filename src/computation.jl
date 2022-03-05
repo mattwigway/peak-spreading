@@ -35,6 +35,11 @@ const PERIODS = Dict(
 )
 
 function period_for_date(date)
+    if (Dates.dayname(date) ∉ Set(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]) ||
+            date ∈ HOLIDAYS || date ∈ HOLIDAYS_Δ1)
+        return missing
+    end
+
     for (name, dates) in PERIODS
         for range in dates
             if date >= range[1] && date <= range[2]

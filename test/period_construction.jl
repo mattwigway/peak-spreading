@@ -39,11 +39,21 @@ end
 end
 
 @testset "Period for date" begin
+    @test KFactors.period_for_date(Date(2021, 6, 15)) == "postpandemic"
     @test KFactors.period_for_date(Date(2021, 6, 16)) == "postpandemic"
+    @test KFactors.period_for_date(Date(2021, 6, 17)) |> ismissing
+    @test KFactors.period_for_date(Date(2021, 6, 18)) |> ismissing
+    @test KFactors.period_for_date(Date(2021, 6, 19)) |> ismissing # Juneteenth
+    @test KFactors.period_for_date(Date(2021, 6, 20)) |> ismissing
+    @test KFactors.period_for_date(Date(2021, 6, 21)) == "postpandemic"
+    @test KFactors.period_for_date(Date(2021, 6, 22)) == "postpandemic"
+    @test KFactors.period_for_date(Date(2021, 6, 23)) == "postpandemic"
+    @test KFactors.period_for_date(Date(2021, 7, 5)) |> ismissing
+    @test KFactors.period_for_date(Date(2019, 7, 4)) |> ismissing
     @test KFactors.period_for_date(Date(2020, 7, 7)) == "pandemic"
-    @test KFactors.period_for_date(Date(2019, 7, 5)) == "prepandemic"
+    @test KFactors.period_for_date(Date(2019, 7, 5)) |> ismissing
     @test KFactors.period_for_date(Date(2018, 6, 29)) == "prepandemic"
-    @test KFactors.period_for_date(Date(2017, 7, 9)) == "prepandemic"
+    @test KFactors.period_for_date(Date(2017, 7, 9)) |> ismissing
     @test KFactors.period_for_date(Date(2016, 6, 23)) == "prepandemic"
     @test KFactors.period_for_date(Date(2021, 2, 16)) |> ismissing
     @test KFactors.period_for_date(Date(2020, 4, 7)) |> ismissing
