@@ -65,7 +65,8 @@ function main()
     end)
     #candidate_files = all_files
 
-    results = Dict{Int64, NamedTuple{(:lanes, :ffs, :capacity), Tuple{Int64, Series, Series}}}()
+    T = Series{Number, Tuple{Counter{Number}, Quantile{ExpandingHist{Number, StepRangeLen{Float64, Base.TwicePrecision{Float64}, Base.TwicePrecision{Float64}, Int64}}}}}
+    results = Dict{Int64, NamedTuple{(:lanes, :ffs, :capacity), Tuple{Int64, T, T}}}()
 
     # first, read meta information
     meta = CSV.read("data/sensor_meta_geo.csv", DataFrame)

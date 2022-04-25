@@ -25,10 +25,10 @@ from time import sleep
 from random import random
 import argparse
 
-DISTRICTS = [3, 4, 5, 6, 7, 8, 10, 11, 12]
+DISTRICTS = [11, 12]
 # DISTRICTS = [8, 10, 11, 12]
-YEARS = [2016, 2017, 2018, 2019, 2020, 2021]
-#YEARS = [2021]  # run script again to update data
+#YEARS = [2016, 2017, 2018, 2019, 2020, 2021]
+YEARS = [2021, 2022]  # run script again to update data
 
 logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s",
@@ -88,6 +88,9 @@ for district in DISTRICTS:
         file_req.raise_for_status()
 
         file_dir = file_req.json()
+
+        if file_dir == []:
+            continue
 
         for month, files in file_dir["data"].items():
             LOG.info(f"{month} ({len(files)} files)")
