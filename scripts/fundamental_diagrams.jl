@@ -2,14 +2,14 @@
 Create fundamental diagrams using PeMS 5-minute data
 =#
 
-using ArgParse, KFactors, Logging, DataFrames, ProgressMeter, CSV, Colors, Random, RawArray
+using ArgParse, KFactors, Logging, DataFrames, ProgressMeter, CSV, Random, RawArray
 
-const CAROLINA_BLUE = colorant"#4B9CD3"
 const RESOLUTION = (1600, 2200)
 const MAX_SPEED_MPH = 100
-const MAX_FLOW_VPH = 3000
+const MAX_FLOW_XVPH = 300
 # bumper-to-bumper 20 foot cars
 const MAX_DENSITY_VPM = ceil(Int64, 5280 / 20)
+const MAX_OCC_THOUSANDTHS = 220
 
 const ARGTABLE = ArgParseSettings()
 @add_arg_table! ARGTABLE begin
@@ -42,7 +42,7 @@ function main(args)
 
     geo = CSV.read(joinpath(Base.source_dir(), "../data/sensor_meta_geo.csv"), DataFrame)
 
-    result = zeros(Int64, (Threads.nthreads(), MAX_SPEED_MPH, MAX_FLOW_VPH, MAX_DENSITY_VPM))
+    result = zeros(Int64, (MAX_SPEED_MPH, MAX_FLOW_XVPH, MAX_DENSITY_VPM, MAX_OCC_THOUSANDTHS))
 
     # start reader thread
     tasks = Vector{Task}()
@@ -67,7 +67,7 @@ function main(args)
     end
 
     # sum up across threads
-    result = dropdims(sum(result; dims=1); dims=1)
+    #result = dropdims(sum(result; dims=1); dims=1)
     # compress uses variable width (zigzag) integer encoding, which will help a lot here
     rawrite(result, args["output_file"]; compress=true)
 end    
@@ -94,9 +94,10 @@ end
 function process_row(row, result)
     if row.avg_speed_mph ≥ 1 && row.avg_speed_mph < (MAX_SPEED_MPH + 1) &&
         row.vehdens ≥ 1 && row.vehdens < (MAX_DENSITY_VPM + 1) &&
-        row.per_lane_flow_vph ≥ 1 && row.per_lane_flow_vph < (MAX_FLOW_VPH + 1)
-        result[Threads.threadid(), floor(Int64, row.avg_speed_mph),
-            floor(Int64, row.per_lane_flow_vph), floor(Int64, row.vehdens)] += 1
+        row.per_lane_flow_vph ≥ 10 && row.per_lane_flow_vph / 10 < (MAX_FLOW_XVPH + 1) &&
+        row.avg_occ ≥ 1e-3 && row.avg_occ * 1000 < (MAX_OCC_THOUSANDTHS + 1)
+        result[floor(Int64, row.avg_speed_mph), floor(Int64, row.per_lane_flow_vph / 10),
+            floor(Int64, row.vehdens), floor(Int64, row.avg_occ * 1000)] += 1
     end
 end
 
