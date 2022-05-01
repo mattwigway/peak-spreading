@@ -78,6 +78,21 @@ function peak_hour_demand(time, speed, flow, free_flow_speed, capacity)
     end
 end
 
+# Daytime: 5am to 8pm
+function is_in_daytime(five_minute_time_of_day)
+    start_of_daytime = 5 * 60 ÷ 5
+    end_of_daytime = 20 * 60 ÷ 5
+    return (five_minute_time_of_day >= start_of_daytime) && (five_minute_time_of_day < end_of_daytime)
+end
+
+# Filter the avg_occ data down to daytime hours
+# And return its entropy
+function occupancy_entropy_daytime(time, avg_occ)
+    daytime_occ = avg_occ[is_in_daytime.(time)]
+
+    return occupancy_entropy(daytime_occ)
+end
+
 # Really this is just an entropy function, but we name it more specifically
 # because we're only using it for occupancy
 function occupancy_entropy(avg_occ)
@@ -147,6 +162,7 @@ function parse_file(file, ffs)
                 [:time, :avg_occ, :total_flow] => peak_hour_factor_binary => [:peak_hour_start, :peak_hour_occ, :peak_hour_occ_avg, :peak_hour_flow],
                 [:time, :avg_speed_mph, :total_flow, :pct95, :cap99] => peak_hour_demand => [:demand_peak_hour_start, :peak_hour_demand, :peak_hour_demand_avg, :demand_peak_hour_flow],
                 :avg_occ => occupancy_entropy => :occ_entropy,
+                [:time, :avg_occ] => occupancy_entropy_daytime => :occ_entropy_daytime,
                 :avg_occ => sum => :total_occ,
                 :total_flow => sum => :total_flow,
                 :lane_type => first => :station_type,

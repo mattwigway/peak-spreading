@@ -25,6 +25,20 @@ end
 
 normentropy = entropy2 ∘ normalize
 
+@testset "Daytime hours" begin
+    # 4:59am is not in daytime
+    @test !KFactors.is_in_daytime(5 * 60 ÷ 5 - 1)
+
+    # 5am is in daytime
+    @test KFactors.is_in_daytime(5 * 60 ÷ 5)
+
+    # 7:59pm is in daytime
+    @test KFactors.is_in_daytime(20 * 60 ÷ 5 - 1)
+
+    # 8:00pm is not in daytime
+    @test !KFactors.is_in_daytime(20 * 60 ÷ 5)
+end
+
 @testset "Entropy" begin
     # sanity check
     @test KFactors.occupancy_entropy([1, 0, 0]) ≈ 0
@@ -37,8 +51,18 @@ normentropy = entropy2 ∘ normalize
     @test_throws AssertionError KFactors.occupancy_entropy([-1, -2, -3])
     @test_throws AssertionError KFactors.occupancy_entropy([-1, 1])  # sums to 0, but not all 0
 
-
     @test ismissing(KFactors.occupancy_entropy([missing, 1, 2]))
+
+    # Check that daytime entropy calculation filters out correctly
+    times = [
+             5 * 60 ÷ 5 - 1, # 4:59 AM
+             5 * 60 ÷ 5, #5:00 AM
+             12 * 60 ÷ 5, #12:00 PM
+             20 * 60 ÷ 5 - 1, #7:59 PM
+             20 * 60 ÷ 5 #8:00 PM
+            ]
+    @test KFactors.occupancy_entropy_daytime(times, [1.0, 2.0, 3.0, 5.0, 6.0]) ≈ normentropy([2.0, 3.0, 5.0])
+
 end
 
 @testset "K-factor" begin
