@@ -53,24 +53,11 @@ function main(args)
         end
     end)
 
-    ffs = CSV.read(joinpath(Base.source_dir(), "../data/free_flow_speeds.csv"), DataFrame)
-
-    # if capacity is less than 1000 pc/lane/hour, make it 1000 pc/lane/hour
-
-    # low_cap = ffs.cap99 .< ffs.lanes .* 1000
-    # @warn "$(mean(low_cap) * 100)% have unreasonable low capacities < 1000 pc/lane/hr"
-    # ffs.capacity = max.(ffs.cap99, ffs.lanes .* 1000)
-    ffs[ffs.count_cap .== 0, :cap99] = ffs[ffs.count_cap .== 0, :lanes] .* 1000
-    ffs[ffs.count_ffs .== 0, :pct95] .= 65
-
-    ffs[ffs.cap99 .< ffs.lanes .* 1000, :cap99] = ffs[ffs.cap99 .< ffs.lanes .* 1000, :lanes] .* 1000
-
-
     total_files = length(candidate_files)
     @info "Found $total_files candidate files"
 
     for file in ProgressBar(candidate_files)
-        parse_file(joinpath(data_dir, file), ffs)
+        parse_file(joinpath(data_dir, file))
     end
 end
 
