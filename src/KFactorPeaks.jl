@@ -60,8 +60,8 @@ end
 
 # Daytime: 5am to 8pm
 function is_in_daytime(five_minute_time_of_day)
-    start_of_daytime = 5 * 60 ÷ 5
-    end_of_daytime = 20 * 60 ÷ 5
+    start_of_daytime = Time(5, 0)
+    end_of_daytime = Time(20, 0)
     return (five_minute_time_of_day >= start_of_daytime) && (five_minute_time_of_day < end_of_daytime)
 end
 
