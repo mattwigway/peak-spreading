@@ -30,27 +30,10 @@ function main(args)
 
     Threads.nthreads() > 1 && error("multithreading causes deadlock in dataframe combine somehow. run with one thread.")
 
-    all_days = Set([
-        period_days_for_year(2021)...,
-        period_days_for_year(2020)...,
-        period_days_for_year(2019)...,
-        period_days_for_year(2018)...,
-        period_days_for_year(2017)...,
-        period_days_for_year(2016)...
-    ])
-
     # TODO why does D12 have one more file than D04?
     candidate_files = collect(filter(all_files) do f
         mat = match(file_pattern, f)
-        if isnothing(mat)
-            return false
-        else
-            y = parse(Int64, mat[1])
-            m = parse(Int64, mat[2])
-            d = parse(Int64, mat[3])
-            date = Dates.Date(y, m, d)
-            return true #in(date, all_days)
-        end
+        return !isnothing(mat)
     end)
 
     total_files = length(candidate_files)
