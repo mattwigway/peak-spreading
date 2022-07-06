@@ -1,5 +1,5 @@
 const DEFAULT_PERMUTATIONS = 1000
-
+const DEFAULT_MIN_COMPLETE = 0.25
 const SEED = 867_5309
 
 function join_data(data_path, meta_path)
@@ -82,19 +82,30 @@ function read_data(data_path; dropmissing = true)
     data
 end
 
+function complete_enough_sensors(subset, period, min_complete)
+    complete_by_sensor = @pipe groupby(subset, :station) |>
+        combine(_, :periods_imputed => (x -> sum(288 .- x)) => :total_not_imputed)
+    total_periods_possible = sum(length.([Periods.filter_days(p[1], p[2]) for p in period])) * 288
+    complete_by_sensor.proportion_complete = complete_by_sensor.total_not_imputed ./ total_periods_possible
+    Set(complete_by_sensor[complete_by_sensor.proportion_complete .≥ min_complete, :station])
+end
+
 # create data for permutation test
-function create_test_data(data, periods)
+# min_complete will drop sensors that are not at least this proportion complete in both the
+# pre-pandemic and post-lockdown periods
+function create_test_data(data, periods; min_complete=DEFAULT_MIN_COMPLETE)
     period = Periods.period_for_date.(data.date, Ref(periods))
-    
-    sensors_in_all_periods = intersect(
-        Set(unique(data[coalesce.(period .== :prepandemic, false), :station])), 
-        Set(unique(data[coalesce.(period .== :lockdown, false), :station])),
-        Set(unique(data[coalesce.(period .== :postlockdown, false), :station]))
+
+    test_data = data[period .∈ Ref(Set([:prepandemic, :lockdown, :postlockdown])), :]
+    test_data.period = Periods.period_for_date.(test_data.date, Ref(periods))
+
+    # figure out sensor completeness
+    sensors = intersect(
+        complete_enough_sensors(test_data[test_data.period .== :prepandemic, :], periods[:prepandemic], min_complete),
+        complete_enough_sensors(test_data[test_data.period .== :postlockdown, :], periods[:postlockdown], min_complete),
     )
 
-    test_data = data[period .∈ Ref(Set([:prepandemic, :lockdown, :postlockdown])) .&& data.station .∈ Ref(sensors_in_all_periods), :]
-    test_data.period = Periods.period_for_date.(test_data.date, Ref(periods))
-    test_data
+    test_data[test_data.station .∈ Ref(sensors), :]
 end
 
 function cumulative_dist(v)

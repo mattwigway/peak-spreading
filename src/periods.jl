@@ -31,16 +31,18 @@ function create_period(start, endd)
     end
 end
 
-
 function period_days_for_year(year, period_for_year)
     start, endd = period_for_year(year)
+    filter_days(start, endd)
+end
+
+function filter_days(start, endd)
     days = filter(start:Dates.Day(1):endd) do d
         Dates.dayofweek(d) != Dates.Saturday &&
         Dates.dayofweek(d) != Dates.Sunday &&
         !in(d, HOLIDAYS_Δ1)
     end
-
-    return collect(days)
+    collect(days)
 end
 
 # const PERIODS = Dict(

@@ -4,7 +4,7 @@
 
 module KFactors
 
-using Dates, CSV, Parquet, DataFrames, Logging, StatsBase, Statistics,
+using Dates, CSV, Parquet, DataFrames, Logging, StatsBase, Statistics, Pipe,
     CategoricalArrays, Random, Printf, CodecZlib, Suppressor, Missings, Logging
 
 include("holidays.jl")
