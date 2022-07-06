@@ -141,6 +141,7 @@ function parse_file(file)
                 :avg_occ => occupancy_entropy => :occ_entropy,
                 [:time, :avg_occ] => occupancy_entropy_daytime => :occ_entropy_daytime,
                 :avg_occ => sum => :total_occ,
+                :avg_speed_mph => (speed -> sum(speed .< 50) / 12) => :hours_of_congestion,
                 :total_flow => sum => :total_flow,
                 :lane_type => first => :station_type,
                 :freeway_number => first => :freeway_number,
