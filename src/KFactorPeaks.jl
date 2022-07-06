@@ -23,32 +23,39 @@ function read_day_file(path::String)
     end
 end
 
-function peak_hour_factor_binary(time, val)
-    if any(isnodata.(val)) || any(isnodata.(time))
-        return (time=missing, pct=missing, avg=missing)
+function peak_hour_factor_binary(time, avg_occ, flow)
+    if any(isnodata.(avg_occ)) || any(isnodata.(time)) || any(isnodata.(flow))
+        return (peak_hour_start=missing, peak_hour_occ=missing, peak_hour_occ_avg=missing, peak_hour_flow=missing)
     end
     
     sorter = sortperm(time)
-    sorted_val = val[sorter]
+    sorted_occ = avg_occ[sorter]
     sorted_time = time[sorter]
-    if length(sorted_val) != (24 * 12)  # 12 5 minute periods per hour, 24 hours per day
-        return (time=missing, pct=missing, avg=missing)
+    sorted_flow = flow[sorter]  
+    if length(sorted_occ) != (24 * 12)  # 12 5 minute periods per hour, 24 hours per day
+        return (peak_hour_start=missing, peak_hour_occ=missing, peak_hour_occ_avg=missing, peak_hour_flow=missing)
     end
             
-    highest_peak_val = -1.0
+    highest_peak_occ = -1.0
+    highest_peak_flow = -1.0
     start_of_highest_peak = missing
     for i in 1:(23 * 12)
         # + 11 because i:i + 12 has length 13, is one hour and 5 minutes
-        peak_amt = sum(sorted_val[i:i + 11])
-        if peak_amt > highest_peak_val
-            highest_peak_val = peak_amt
+        peak_amt = sum(sorted_occ[i:i + 11])
+        if peak_amt > highest_peak_occ
+            highest_peak_occ = peak_amt
+            highest_peak_flow = sum(sorted_flow[i:i+11])
             start_of_highest_peak = sorted_time[i]
         end
     end
     
     @assert !isnodata(start_of_highest_peak)
     
-    return (time=start_of_highest_peak, pct=highest_peak_val / sum(val), avg=highest_peak_val)
+    # normalize to total traffic for day
+    peak_occ_avg = highest_peak_occ / 12
+    highest_peak_occ /= sum(avg_occ)
+    highest_peak_flow /= sum(flow)
+    return (peak_hour_start=start_of_highest_peak, peak_hour_occ=highest_peak_occ, peak_hour_occ_avg=peak_occ_avg, peak_hour_flow=highest_peak_flow)
 end
 
 # Daytime: 5am to 8pm
@@ -130,12 +137,10 @@ function parse_file(file)
         else
             peaks = combine(
                 groupby(d, :station),
-                [:time, :avg_occ] => peak_hour_factor_binary => [:peak_hour_start, :peak_hour_occ, :peak_hour_occ_avg],
-                [:time, :total_flow] => peak_hour_factor_binary => [:peak_hour_start_flow, :peak_hour_flow, :peak_hour_flow_total],
+                [:time, :avg_occ, :total_flow] => peak_hour_factor_binary => [:peak_hour_start, :peak_hour_occ, :peak_hour_occ_avg, :peak_hour_flow],
                 :avg_occ => occupancy_entropy => :occ_entropy,
                 [:time, :avg_occ] => occupancy_entropy_daytime => :occ_entropy_daytime,
                 :avg_occ => sum => :total_occ,
-                :avg_speed_mph => (speed -> sum(speed .< 50) / 12) => :hours_of_congestion,
                 :total_flow => sum => :total_flow,
                 :lane_type => first => :station_type,
                 :freeway_number => first => :freeway_number,
@@ -143,8 +148,6 @@ function parse_file(file)
                 [:time, :pct_obs] => longest_imputed_time => :longest_imputed_time,
                 :direction => first => :direction
             )
-
-            peaks.peak_hour_occ_avg ./= 12  #convert sum to average
 
             if all(isnodata.(peaks.peak_hour_occ))
                 @warn "$(file) has no observations"
@@ -155,12 +158,10 @@ function parse_file(file)
                 peaks[!, :day] .= Dates.day(d.timestamp[1])
                 peaks.peak_hour_start_hour = passmissing(Dates.hour).(peaks.peak_hour_start)
                 peaks.peak_hour_start_minute = passmissing(Dates.minute).(peaks.peak_hour_start)
-                peaks.peak_hour_start_flow_hour = passmissing(Dates.hour).(peaks.peak_hour_start_flow)
-                peaks.peak_hour_start_flow_minute = passmissing(Dates.minute).(peaks.peak_hour_start_flow)
                 peaks[!, :day_of_week] .= Dates.dayname(d.timestamp[1])
 
                 # remove the raw peak_hour_start field as parquet cannot handle times
-                select!(peaks, Not([:peak_hour_start, :peak_hour_start_flow]))
+                select!(peaks, Not([:peak_hour_start]))
 
                 # convert pooledarrays to bona fide strings
                 peaks.direction = string.(peaks.direction)

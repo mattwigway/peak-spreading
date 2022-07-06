@@ -72,18 +72,18 @@ end
     # peak hour is 7 - 8 am
     # + 1 - one based indexing
     occ[(7 * 60 ÷ 5 + 1):(8 * 60 ÷ 5)] .= 0.05
-    #flow = ones(Float64, length(times)) .* 2
+    flow = ones(Float64, length(times)) .* 2
     # flow is lower at peak (represents oversaturation in the real world, but
     # also makes sure flow calculation is correctly based on occupancy peak).
-    #flow[(7 * 60 ÷ 5 + 1):(8 * 60 ÷ 5)] .= 1  
+    flow[(7 * 60 ÷ 5 + 1):(8 * 60 ÷ 5)] .= 1  
 
-    res = KFactors.peak_hour_factor_binary(times, occ)
-    @test res[1] == Time(7, 0, 0)
+    res = KFactors.peak_hour_factor_binary(times, occ, flow)
+    @test res.peak_hour_start == Time(7, 0, 0)
     # one hour of 0.05 in 5-minute increments, over 23 hours of 0.01 and 1 hour of 0.05
     expected_peak_occ = (0.05 * 60 / 5) / sum(occ)
-    @test res[2] ≈ expected_peak_occ
-    # expected_peak_flow = (60 / 5) / sum(flow)
-    # @test res.peak_hour_flow ≈ expected_peak_flow
+    @test res.peak_hour_occ ≈ expected_peak_occ
+    expected_peak_flow = (60 / 5) / sum(flow)
+    @test res.peak_hour_flow ≈ expected_peak_flow
 
     # now, test out of order - function should use times to put back in order
     rng = MersenneTwister(27599)
@@ -91,42 +91,50 @@ end
     shuffle!(rng, new_order)
     shuffled_time = times[new_order]
     shuffled_occ = occ[new_order]
-#    shuffled_flow = flow[new_order]
+    shuffled_flow = flow[new_order]
     orig_times = copy(shuffled_time)
     orig_occ = copy(shuffled_occ)
-#    orig_flow = copy(shuffled_flow)
-    res = KFactors.peak_hour_factor_binary(shuffled_time, shuffled_occ)
+    orig_flow = copy(shuffled_flow)
+    res = KFactors.peak_hour_factor_binary(shuffled_time, shuffled_occ, shuffled_flow)
     # result should be the same
-    @test res[1] == Time(7, 0, 0)
+    @test res.peak_hour_start == Time(7, 0, 0)
     # one hour of 0.05 in 5-minute increments, over 23 hours of 0.01 and 1 hour of 0.05
-    @test res[2] ≈ expected_peak_occ
-    #@test res.peak_hour_flow ≈ expected_peak_flow
+    @test res.peak_hour_occ ≈ expected_peak_occ
+    @test res.peak_hour_flow ≈ expected_peak_flow
 
     # original arrays should not be modified
     @test all(orig_times .== shuffled_time)
     @test all(orig_occ .== shuffled_occ)
     @test all(orig_occ .== shuffled_occ)
-#    @test all(orig_flow .== shuffled_flow)
+    @test all(orig_flow .== shuffled_flow)
 
     # if anything is missing, should return missing
     miss_time = convert(Vector{Union{Dates.Time, Missing}}, copy(times))
     miss_time[42] = missing
     miss_occ = convert(Vector{Union{Float64, Missing}}, copy(occ))
     miss_occ[42] = missing
-#    miss_flow = convert(Vector{Union{Float64, Missing}}, copy(flow))
-#    miss_flow[42] = missing
+    miss_flow = convert(Vector{Union{Float64, Missing}}, copy(flow))
+    miss_flow[42] = missing
 
-    res = KFactors.peak_hour_factor_binary(miss_time, occ)
-    @test ismissing(res[1])
-    @test ismissing(res[2])
+    res = KFactors.peak_hour_factor_binary(miss_time, occ, flow)
+    @test ismissing(res.peak_hour_start)
+    @test ismissing(res.peak_hour_occ)
+    @test ismissing(res.peak_hour_flow)
 
-    res = KFactors.peak_hour_factor_binary(time, miss_occ)
-    @test ismissing(res[1])
-    @test ismissing(res[2])
+    res = KFactors.peak_hour_factor_binary(time, miss_occ, flow)
+    @test ismissing(res.peak_hour_start)
+    @test ismissing(res.peak_hour_occ)
+    @test ismissing(res.peak_hour_flow)
 
-    res = KFactors.peak_hour_factor_binary(miss_time, miss_occ)
-    @test ismissing(res[1])
-    @test ismissing(res[2])
+    res = KFactors.peak_hour_factor_binary(miss_time, miss_occ, flow)
+    @test ismissing(res.peak_hour_start)
+    @test ismissing(res.peak_hour_occ)
+    @test ismissing(res.peak_hour_flow)
+
+    res = KFactors.peak_hour_factor_binary(time, occ, miss_flow)
+    @test ismissing(res.peak_hour_start)
+    @test ismissing(res.peak_hour_occ)
+    @test ismissing(res.peak_hour_flow)
 end
 
 @testset "Periods imputed" begin
