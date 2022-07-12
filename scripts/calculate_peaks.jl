@@ -1,19 +1,12 @@
 # Calculate peaks for all sensor data
 
-using CSV
-using Parquet
-using CodecZlib
-using ArgParse
-using StatsBase
-using Dates
-using Printf
-using ProgressBars
-using Suppressor
-using DataFrames
-using Missings
-using Logging
-using Random
-using KFactors
+using Distributed
+addprocs(exeflags="--project=$(Base.active_project())")
+
+@everywhere begin
+    using CSV, Parquet, CodecZlib, ArgParse, StatsBase, Dates, Printf, ProgressMeter, Suppressor, DataFrames,
+        Missings, Logging, Random, KFactors
+end
 
 s = ArgParseSettings()
 
@@ -39,10 +32,15 @@ function main(args)
     total_files = length(candidate_files)
     @info "Found $total_files candidate files"
 
-    for file in ProgressBar(candidate_files)
+    @showprogress @distributed for file in candidate_files
         parse_file(joinpath(data_dir, file))
     end
+
+    sleep(60) # work around https://github.com/timholy/ProgressMeter.jl/issues/242
 end
 
 main(ARGS)
+
+#sleep(30)  # hack to give distributed time to shut down
+
 #parse_file("/Volumes/Pheasant Ridge/pems/d12_text_station_5min_2021_01_03.txt.gz")
