@@ -28,18 +28,28 @@ function peak_hour_factor_binary(time, avg_occ, flow)
         return (peak_hour_start=missing, peak_hour_occ=missing, peak_hour_occ_avg=missing, peak_hour_flow=missing)
     end
     
-    sorter = sortperm(time)
-    sorted_occ = avg_occ[sorter]
-    sorted_time = time[sorter]
-    sorted_flow = flow[sorter]  
-    if length(sorted_occ) != (24 * 12)  # 12 5 minute periods per hour, 24 hours per day
+    if !issorted(time)
+        sorter = sortperm(time)
+        sorted_occ = avg_occ[sorter]
+        sorted_time = time[sorter]
+        sorted_flow = flow[sorter]
+    else
+        sorted_occ = avg_occ
+        sorted_time = time
+        sorted_flow = flow
+    end
+
+    if !(
+        length(sorted_occ) == (24 * 12) || # 12 5 minute periods per hour, 24 hours per day
+        (length(sorted_occ) == (23 * 12) && all((Time(2, 0, 0)):Minute(5):(Time(2, 55, 0)) .∉ Ref(sorted_time)))
+        )
         return (peak_hour_start=missing, peak_hour_occ=missing, peak_hour_occ_avg=missing, peak_hour_flow=missing)
     end
             
     highest_peak_occ = -1.0
     highest_peak_flow = -1.0
     start_of_highest_peak = missing
-    for i in 1:(23 * 12)
+    for i in 1:(length(sorted_occ) - 12) # base on length of sorted_occ so doesn't fail with DST
         # + 11 because i:i + 12 has length 13, is one hour and 5 minutes
         peak_amt = sum(sorted_occ[i:i + 11])
         if peak_amt > highest_peak_occ
@@ -135,6 +145,13 @@ function parse_file(file)
         if isnothing(d)
             @error "Failed to read $file"
         else
+            if maximum(d.time) != Time(23, 55)
+                @error "$file is truncated at time $(maximum(d.time))"
+                return
+            end
+
+            d = combine(groupby(d, [:station, :time]), first) # Drop duplicate rows - I think the files run into the next day
+
             peaks = combine(
                 groupby(d, :station),
                 [:time, :avg_occ, :total_flow] => peak_hour_factor_binary => [:peak_hour_start, :peak_hour_occ, :peak_hour_occ_avg, :peak_hour_flow],
