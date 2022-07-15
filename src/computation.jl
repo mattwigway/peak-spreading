@@ -28,8 +28,6 @@ function join_data(data_path, meta_path)
     # add the day of the week
     data.dayofweek = CategoricalArray(Dates.dayname.(data.date))
 
-    # add an indicator to indicate a sensor was present in all periods
-
     @info "Before filtering, data has $(nrow(data)) rows"
 
     # filter data before returning
@@ -84,6 +82,9 @@ end
 
 function complete_enough_sensors(subset, period, min_complete)
     complete_by_sensor = @pipe groupby(subset, :station) |>
+        # This is total not imputed or missing, because if they were missing for another reason they wouldn't be in the
+        # peaks file at all, because that entire sensor-day would have been dropped during peak calculation. Since we sum
+        # up just the ones that are present, and then divide by the total possible periods, we are getting a percent complete.
         combine(_, :periods_imputed => (x -> sum(288 .- x)) => :total_not_imputed)
     total_periods_possible = sum(length.([Periods.filter_days(p[1], p[2]) for p in period])) * 288
     complete_by_sensor.proportion_complete = complete_by_sensor.total_not_imputed ./ total_periods_possible
