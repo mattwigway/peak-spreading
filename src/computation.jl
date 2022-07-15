@@ -155,16 +155,21 @@ function permute(data, n_permutations, col)
        
         n = zeros(Int64, 2)
         
-        for row in zip(data.date::Vector{Date}, data[!, col]::Vector{Union{Missing, Float64}})
-            period = period_for_day[row[1]]
-            output[period, permutation] += row[2]
-            n[period] += 1
-        end
+        # barrier function for type stability
+        _permute_inner!(data.date, data[!, col], period_for_day, output, n, permutation)
         
         output[:, permutation] ./= n
     end
     
     return output
+end
+
+function _permute_inner!(date, col, period_for_day, output, n, permutation)
+    for row in zip(date, col)
+        period = period_for_day[row[1]]
+        output[period, permutation] += row[2]
+        n[period] += 1
+    end
 end
 
 function permutation_test(data, col; n_permutations=DEFAULT_PERMUTATIONS)
