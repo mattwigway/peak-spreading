@@ -68,7 +68,19 @@ const HOLIDAYS = Set([
     Date(2021, 10, 11),
     Date(2021, 11, 11),
     Date(2021, 11, 25),
-    Date(2021, 12, 24)
+    Date(2021, 12, 24),
+    Date(2021, 12, 31),
+
+    Date(2022, 1, 17),
+    Date(2022, 2, 21),
+    Date(2022, 5, 30),
+    Date(2022, 6, 20),
+    Date(2022, 7, 4),
+    Date(2022, 9, 5),
+    Date(2022, 10, 10),
+    Date(2022, 11, 11),
+    Date(2022, 11, 24),
+    Date(2022, 12, 26)
 ])
 
 # all holidays and the days before and after

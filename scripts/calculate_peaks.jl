@@ -1,19 +1,12 @@
 # Calculate peaks for all sensor data
 
-using CSV
-using Parquet
-using CodecZlib
-using ArgParse
-using StatsBase
-using Dates
-using Printf
-using ProgressBars
-using Suppressor
-using DataFrames
-using Missings
-using Logging
-using Random
-using KFactors
+using Distributed
+addprocs(exeflags="--project=$(Base.active_project())")
+
+@everywhere begin
+    using CSV, Parquet, CodecZlib, ArgParse, StatsBase, Dates, Printf, ProgressMeter, Suppressor, DataFrames,
+        Missings, Logging, Random, KFactors
+end
 
 s = ArgParseSettings()
 
@@ -30,49 +23,24 @@ function main(args)
 
     Threads.nthreads() > 1 && error("multithreading causes deadlock in dataframe combine somehow. run with one thread.")
 
-    all_days = Set([
-        period_days_for_year(2021)...,
-        period_days_for_year(2020)...,
-        period_days_for_year(2019)...,
-        period_days_for_year(2018)...,
-        period_days_for_year(2017)...,
-        period_days_for_year(2016)...
-    ])
-
     # TODO why does D12 have one more file than D04?
     candidate_files = collect(filter(all_files) do f
         mat = match(file_pattern, f)
-        if isnothing(mat)
-            return false
-        else
-            y = parse(Int64, mat[1])
-            m = parse(Int64, mat[2])
-            d = parse(Int64, mat[3])
-            date = Dates.Date(y, m, d)
-            return true #in(date, all_days)
-        end
+        return !isnothing(mat)
     end)
-
-    ffs = CSV.read(joinpath(Base.source_dir(), "../data/free_flow_speeds.csv"), DataFrame)
-
-    # if capacity is less than 1000 pc/lane/hour, make it 1000 pc/lane/hour
-
-    # low_cap = ffs.cap99 .< ffs.lanes .* 1000
-    # @warn "$(mean(low_cap) * 100)% have unreasonable low capacities < 1000 pc/lane/hr"
-    # ffs.capacity = max.(ffs.cap99, ffs.lanes .* 1000)
-    ffs[ffs.count_cap .== 0, :cap99] = ffs[ffs.count_cap .== 0, :lanes] .* 1000
-    ffs[ffs.count_ffs .== 0, :pct95] .= 65
-
-    ffs[ffs.cap99 .< ffs.lanes .* 1000, :cap99] = ffs[ffs.cap99 .< ffs.lanes .* 1000, :lanes] .* 1000
-
 
     total_files = length(candidate_files)
     @info "Found $total_files candidate files"
 
-    for file in ProgressBar(candidate_files)
-        parse_file(joinpath(data_dir, file), ffs)
+    @showprogress @distributed for file in candidate_files
+        parse_file(joinpath(data_dir, file))
     end
+
+    sleep(60) # work around https://github.com/timholy/ProgressMeter.jl/issues/242
 end
 
 main(ARGS)
+
+#sleep(30)  # hack to give distributed time to shut down
+
 #parse_file("/Volumes/Pheasant Ridge/pems/d12_text_station_5min_2021_01_03.txt.gz")

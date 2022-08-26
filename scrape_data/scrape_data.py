@@ -27,7 +27,7 @@ import argparse
 
 DISTRICTS = [3, 4, 5, 6, 7, 8, 10, 11, 12]
 # DISTRICTS = [8, 10, 11, 12]
-YEARS = [2016, 2017, 2018, 2019, 2020, 2021]
+YEARS = [2022]
 #YEARS = [2021]  # run script again to update data
 
 logging.basicConfig(
@@ -93,6 +93,7 @@ for district in DISTRICTS:
             LOG.info(f"{month} ({len(files)} files)")
 
             for file in files:
+                complete = False
                 final_outfile = os.path.join(data_folder, file["file_name"])
                 if os.path.exists(final_outfile):
                     LOG.info(
@@ -102,31 +103,32 @@ for district in DISTRICTS:
                     outfile = os.path.join(
                         data_folder, file["file_name"] + ".download_in_progress"
                     )
-                    with open(outfile, "wb") as output:
-                        for i in range(5):
-                            sleep(random() * 2)
-                            try:
-                                with requests.get(
-                                    "https://pems.dot.ca.gov" + file["url"][1:],
-                                    cookies=sess,
-                                ) as r:
-                                    r.raise_for_status()
 
-                                    for chunk in r.iter_content(8192):
-                                        output.write(chunk)
-                            except:
-                                if i < 4:
-                                    LOG.warning(
-                                        f"Error retrieving {file['file_name']}, retrying"
-                                    )
-                                else:
-                                    LOG.error(
-                                        f"Could not retrieve {file['file_name']} after 5 tries, exiting"
-                                    )
-                                    sys.exit(1)
+                    for i in range(5):
+                        sleep(random() * 2)
+                        try:
+                            with requests.get(
+                                "https://pems.dot.ca.gov" + file["url"][1:],
+                                cookies=sess,
+                            ) as r:
+                                r.raise_for_status()
+                                    with open(outfile, "wb") as output:
+                                        for chunk in r.iter_content(8192):
+                                            output.write(chunk)
+                        except:
+                            if i < 4:
+                                LOG.warning(
+                                    f"Error retrieving {file['file_name']}, retrying"
+                                )
                             else:
-                                n_downloads += 1
-                                os.rename(outfile, final_outfile)
-                                break
+                                LOG.error(
+                                    f"Could not retrieve {file['file_name']} after 5 tries, exiting"
+                                )
+                                sys.exit(1)
+                        else:
+                            n_downloads += 1
+                            os.rename(outfile, final_outfile)
+                            break
+
 
 LOG.info(f"Downloaded {n_downloads} files")

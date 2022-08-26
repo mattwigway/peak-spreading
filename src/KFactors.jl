@@ -4,14 +4,14 @@
 
 module KFactors
 
-using Dates, CSV, Parquet, DataFrames, Logging, StatsBase, Statistics,
+using Dates, CSV, Parquet, DataFrames, Logging, StatsBase, Statistics, Pipe,
     CategoricalArrays, Random, Printf, CodecZlib, Suppressor, Missings, Logging
 
 include("holidays.jl")
 include("geo.jl")
 include("KFactorPeaks.jl")
 include("computation.jl")
-include("vdf.jl")
+include("periods.jl")
 
 export HOLIDAYS, HOLIDAYS_Δ1, read_data, permutation_test, period_for_year, period_days_for_year, parse_file, VDF
 end
