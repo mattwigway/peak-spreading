@@ -73,15 +73,20 @@ end
 
 
 # Find matching periods in previous years
-spring_2022_period = create_period(Date(2022, 2, 16), Date(2022, 4, 18))
+spring_2022_period = create_period(Date(2022, 2, 16), Date(2022, 8, 18))
+
+# split lockdown period into May-August 2020 and February to April 2021 so all of it is in
+# the scary time but still matches extents of post-lockdown period
+lockdown_may = create_period(Date(2022, 5, 1), Date(2022, 8, 18))
+lockdown_feb = create_period(Date(2022, 2, 16), Date(2022, 4, 30))
 const SPRING_2022 = Dict(
     :postlockdown => [spring_2022_period(2022)],
-    :lockdown => [spring_2022_period(2021)],
+    :lockdown => [lockdown_may(2020), lockdown_feb(2021)],
     :prepandemic => collect(spring_2022_period.(2016:2019))
 )
 
 # create some additional datasets/periods
-march_2022_period_for_year = create_period(Date(2022, 3, 12), Date(2022, 4, 18))
+march_2022_period_for_year = create_period(Date(2022, 3, 12), Date(2022, 8, 18))
 const MARCH_2022 = Dict(
     :postlockdown => [march_2022_period_for_year(2022)],
     :lockdown => [march_2022_period_for_year(2021)],
