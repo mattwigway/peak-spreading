@@ -66,8 +66,9 @@ end
 
 end
 
-@testset "K-factor" begin
+@testset "peak hour factor binary" begin
     times = Dates.Minute.(0:5:(24 * 60 - 1)) .+ Dates.Time(0, 0, 0)
+    @test maximum(times) == Dates.Time(23, 55, 0)
     occ = ones(Float64, length(times)) ./ 100
     # peak hour is 7 - 8 am
     # + 1 - one based indexing
@@ -75,20 +76,22 @@ end
     flow = ones(Float64, length(times)) .* 2
     # flow is lower at peak (represents oversaturation in the real world, but
     # also makes sure flow calculation is correctly based on occupancy peak).
-    flow[(7 * 60 ÷ 5 + 1):(8 * 60 ÷ 5)] .= 1  
+    flow[(7 * 60 ÷ 5 + 1):(8 * 60 ÷ 5)] .= 1 
 
     res = KFactors.peak_hour_factor_binary(times, occ, flow)
     @test res.peak_hour_start == Time(7, 0, 0)
     # one hour of 0.05 in 5-minute increments, over 23 hours of 0.01 and 1 hour of 0.05
     expected_peak_occ = (0.05 * 60 / 5) / sum(occ)
     @test res.peak_hour_occ ≈ expected_peak_occ
-    expected_peak_flow = (60 / 5) / sum(flow)
+    # 1 car per period for one hour
+    expected_peak_flow = (1 * 60 / 5) / sum(flow)
     @test res.peak_hour_flow ≈ expected_peak_flow
 
     # now, test out of order - function should use times to put back in order
     rng = MersenneTwister(27599)
     new_order = collect(1:length(times))
     shuffle!(rng, new_order)
+    @test !issorted(new_order)
     shuffled_time = times[new_order]
     shuffled_occ = occ[new_order]
     shuffled_flow = flow[new_order]
@@ -135,6 +138,37 @@ end
     @test ismissing(res.peak_hour_start)
     @test ismissing(res.peak_hour_occ)
     @test ismissing(res.peak_hour_flow)
+
+    # and a daylight savings time day
+    dst_idxes = [1:(KFactors.idx_for_time(Time(2, 0, 0)) - 1)..., KFactors.idx_for_time(Time(3, 0, 0)):288...]
+    dst_time = time[dst_idxes]
+    dst_occ = occ[dst_idxes]
+    dst_flow  = flow[dst_idxes]
+
+    res = KFactors.peak_hour_factor_binary(dst_time, dst_occ, dst_flow)
+    @test res.peak_hour_start == Time(7, 0, 0)
+    # similar to expected but different normalization
+    # normalization difference is small enough we can ignore in analysis, and
+    # our main analysis doesn't include Sundays anyways
+    @test res.peak_hour_occ ≈ (0.05 * 60 / 5) / sum(dst_occ)
+    @test res.peak_hour_flow ≈ (1 * 60 / 5) / sum(dst_flow)
+
+    # right length, wrong hour missing
+    incorrect_dst = 1:(288 - 12)
+    @test length(incorrect_dst) == length(dst_idxes)
+    incorrect_dst_time = time[incorrect_dst]
+    incorrect_dst_occ = occ[incorrect_dst]
+    incorrect_dst_flow = flow[incorrect_dst]
+    res = KFactors.peak_hour_factor_binary(incorrect_dst_time, incorrect_dst_occ, incorrect_dst_flow)
+    @test ismissing(res.peak_hour_start)
+    @test ismissing(res.peak_hour_occ)
+    @test ismissing(res.peak_hour_flow)
+
+    # wrong length
+    res = KFactors.peak_hour_factor_binary(time[1:42], occ[1:42], flow[1:42])
+    @test ismissing(res.peak_hour_start)
+    @test ismissing(res.peak_hour_occ)
+    @test ismissing(res.peak_hour_flow)
 end
 
 @testset "Periods imputed" begin
@@ -168,4 +202,13 @@ end
     # should handle missings
     @test ismissing(KFactors.longest_imputed_time([Dates.Time(12, 15, 0), missing], [1, 2]))
     @test ismissing(KFactors.longest_imputed_time([Dates.Time(12, 15, 0), Dates.Time(15, 0, 0)], [1, missing]))
+end
+
+@testset "isnodata" begin
+    @test KFactors.isnodata(missing)
+    @test KFactors.isnodata(nothing)
+    @test KFactors.isnodata(NaN)
+    @test !KFactors.isnodata(42)
+    @test !KFactors.isnodata(0)
+    @test !KFactors.isnodata("")
 end
