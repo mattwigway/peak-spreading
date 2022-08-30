@@ -8,7 +8,6 @@ using Dates, CSV, Parquet, DataFrames, Logging, StatsBase, Statistics, Pipe,
     CategoricalArrays, Random, Printf, CodecZlib, Suppressor, Missings, Logging
 
 include("holidays.jl")
-include("geo.jl")
 include("KFactorPeaks.jl")
 include("computation.jl")
 include("periods.jl")
