@@ -1,3 +1,5 @@
 *.ipynb	diff=jupyternotebook
 *.ipynb	merge=jupyternotebook
 *.parquet filter=lfs diff=lfs merge=lfs -text
+data/flow_occ_distr.csv filter=lfs diff=lfs merge=lfs -text
+data/fundamental_diagram.ra filter=lfs diff=lfs merge=lfs -text
