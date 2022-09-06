@@ -141,7 +141,7 @@ end
 
     # and a daylight savings time day
     dst_idxes = [1:(KFactors.idx_for_time(Time(2, 0, 0)) - 1)..., KFactors.idx_for_time(Time(3, 0, 0)):288...]
-    dst_time = time[dst_idxes]
+    dst_time = times[dst_idxes]
     dst_occ = occ[dst_idxes]
     dst_flow  = flow[dst_idxes]
 
@@ -156,7 +156,7 @@ end
     # right length, wrong hour missing
     incorrect_dst = 1:(288 - 12)
     @test length(incorrect_dst) == length(dst_idxes)
-    incorrect_dst_time = time[incorrect_dst]
+    incorrect_dst_time = times[incorrect_dst]
     incorrect_dst_occ = occ[incorrect_dst]
     incorrect_dst_flow = flow[incorrect_dst]
     res = KFactors.peak_hour_factor_binary(incorrect_dst_time, incorrect_dst_occ, incorrect_dst_flow)
@@ -165,7 +165,7 @@ end
     @test ismissing(res.peak_hour_flow)
 
     # wrong length
-    res = KFactors.peak_hour_factor_binary(time[1:42], occ[1:42], flow[1:42])
+    res = KFactors.peak_hour_factor_binary(times[1:42], occ[1:42], flow[1:42])
     @test ismissing(res.peak_hour_start)
     @test ismissing(res.peak_hour_occ)
     @test ismissing(res.peak_hour_flow)
