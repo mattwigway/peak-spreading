@@ -181,5 +181,6 @@ function permutation_test(data, col; n_permutations=DEFAULT_PERMUTATIONS)
     return (ptest=obs_diff, pval=pval, n_sensors=n_sensors)
 end
 
-idx_for_time(time) = Dates.hour(time) * 12 + Dates.minute(time) ÷ 5 + 1
+# using convert rather than ÷ to ensure an inexacterror is thrown with non-quantized times
+idx_for_time(time) = convert(Int64, Dates.hour(time) * 12 + Dates.minute(time) / 5 + 1)
 time_for_idx(idx) = Dates.Time((idx - 1) ÷ 12, (idx - 1) % 12 * 5)
