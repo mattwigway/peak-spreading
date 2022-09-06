@@ -223,15 +223,15 @@ end
     data = CSV.read(joinpath(Base.source_dir(), "completeness_test.csv"), DataFrame,
         types=Dict(:station=>Int64, :period=>Symbol, :periods_imputed => Int64))
 
-    prepandemic = data[data.period .== :prepandemic, :]
-    postlockdown = data[data.period .== :postlockdown, :]
+    prepandemic = data[coalesce.(data.period .== :prepandemic, false), :]
+    postlockdown = data[coalesce.(data.period .== :postlockdown, false), :]
 
     # four days, seven sensors
     @test nrow(prepandemic) == 4 * 7
     @test nrow(postlockdown) == 4 * 7
     
-    prepandemic_period = [[Date(2022, 08, 15), Date(2022, 08, 18)]] # four days, inclusive
-    postlockdown_period = [[Date(2022, 08, 22), Date(2022, 08, 23)], [Date(2022, 9, 7), Date(2022, 9, 8)]] # four days, but split
+    prepandemic_period = [[Date(2019, 05, 13), Date(2019, 05, 16)]] # four days, inclusive
+    postlockdown_period = [[Date(2022, 4, 11), Date(2022, 4, 12)], [Date(2022, 4, 18), Date(2022, 4, 19)]] # four days, split
 
     @test length(KFactors.Periods.filter_days(prepandemic_period[1][1], prepandemic_period[1][2])) == 4
     @test length(KFactors.Periods.filter_days(postlockdown_period[1][1], postlockdown_period[1][2])) == 2
@@ -266,4 +266,47 @@ end
 
     # and 5 should be present prepandemic but not postlockdown
     KFactors.complete_enough_sensors(postlockdown, postlockdown_period, 0.75) == Set([1, 5, 6])
+end
+
+@testset "create_test_data" begin
+    # same fake dataset from previous test
+    full_data = CSV.read(joinpath(Base.source_dir(), "completeness_test.csv"), DataFrame,
+        types=Dict(:station=>Int64, :period=>Symbol, :periods_imputed => Int64), dateformat="yyyy-mm-dd")
+
+    period = Dict(
+        :prepandemic => [[Date(2019, 05, 13), Date(2019, 05, 16)]], # four days, inclusive
+        :lockdown => [[Date(2020, 3, 11), Date(2020, 3, 11)]],
+        :postlockdown => [[Date(2022, 4, 11), Date(2022, 4, 12)], [Date(2022, 4, 18), Date(2022, 4, 19)]]
+    )
+
+    # blank out period, make it re-create
+    full_data = select(full_data, Not(:period))
+
+    # make sure we have some dates for it to filter out
+    @test any(full_data.date .== Date(2019, 11, 4))
+
+    @test any(.!ismissing.(KFactors.Periods.period_for_date.(full_data.date, Ref(period))))
+
+    # Filter the data using default settings. We should only have sensors 1:6, not 0
+    data = KFactors.create_test_data(full_data, period)
+    @test Set(unique(data.station)) == Set(1:6)
+
+    # six sensors * 9 observations per sensor
+    @test nrow(data) == 6 * 9
+    
+    # the non-period data should be gone
+    @test !any(data.date .== Date(2019, 11, 4))
+
+    # periods should be computed correctly (tested above)
+    @test KFactors.Periods.period_for_date.(data.date, Ref(period)) == data.period
+
+    # with a 50% min complete, 3 should additionally be missing
+    @test Set(unique(KFactors.create_test_data(full_data, period, min_complete=0.5).station)) ==
+        Set([1, 2, 4, 5, 6])
+
+    # with 75% min complete, only 1 and 6 should be present
+    @test Set(unique(KFactors.create_test_data(full_data, period, min_complete=0.75).station)) == Set([1, 6])
+
+    # with 0% min complete, everything should be present
+    @test Set(unique(KFactors.create_test_data(full_data, period, min_complete=0).station)) == Set(0:6)
 end

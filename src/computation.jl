@@ -93,7 +93,6 @@ function complete_enough_sensors(subset, period, min_complete)
     Set(complete_by_sensor[complete_by_sensor.proportion_complete .≥ min_complete, :station])
 end
 
-# FLAG FOR FOLLOWUP: TEST
 # create data for permutation test
 # min_complete will drop sensors that are not at least this proportion complete in both the
 # pre-pandemic and post-lockdown periods
