@@ -310,3 +310,10 @@ end
     # with 0% min complete, everything should be present
     @test Set(unique(KFactors.create_test_data(full_data, period, min_complete=0).station)) == Set(0:6)
 end
+
+@testset "cumulative_dist" begin
+    vals = [7, 1, 1, 2, 3, 5]
+    x, y = KFactors.cumulative_dist(vals)
+    @test x == [1, 1, 2, 3, 5, 7]
+    @test y == [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
+end

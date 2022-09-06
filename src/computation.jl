@@ -111,7 +111,6 @@ function create_test_data(data, periods; min_complete=DEFAULT_MIN_COMPLETE)
     test_data[test_data.station .∈ Ref(sensors), :]
 end
 
-# FLAG FOR FOLLOWUP: TEST
 function cumulative_dist(v)
     sorted = sort(v[isfinite.(v)])
     return sorted, (1:length(sorted)) ./ length(sorted)
