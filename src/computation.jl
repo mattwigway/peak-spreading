@@ -80,7 +80,6 @@ function read_data(data_path; dropmissing = true)
     data
 end
 
-# FLAG FOR FOLLOWUP: TEST
 function complete_enough_sensors(subset, period, min_complete)
     complete_by_sensor = @pipe groupby(subset, :station) |>
         # This is total not imputed or missing, because if they were missing for another reason they wouldn't be in the

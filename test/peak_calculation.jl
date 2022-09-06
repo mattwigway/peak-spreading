@@ -1,8 +1,4 @@
-using KFactors
-using StatsBase
-using Test
-using Dates
-using Random
+using KFactors, StatsBase, Test, Dates, Random, CSV, DataFrames
 
 function normalize(v)
     return v ./ sum(v)
@@ -211,4 +207,63 @@ end
     @test !KFactors.isnodata(42)
     @test !KFactors.isnodata(0)
     @test !KFactors.isnodata("")
+end
+
+@testset "complete_enough_sensors" begin
+    # create a fake dataset
+    # station 0 is 100% missing in both periods
+    # station 1 is 100% complete in both periods
+    # station 2 is 50% complete in both periods
+    # station 3 is 25% complete in both periods
+    # station 4 is 50% complete in prepandemic, 100% postlockdown
+    # station 5 is 50% complete in postlockdown, 100% prepandemic
+    # station 6 is 100% complete in both periods but missing in lockdown (should not matter)
+    # note that "incomplete" means imputed anywhere from 1-288, and different values are used to confirm
+    # this is working as intended
+    data = CSV.read(joinpath(Base.source_dir(), "completeness_test.csv"), DataFrame,
+        types=Dict(:station=>Int64, :period=>Symbol, :periods_imputed => Int64))
+
+    prepandemic = data[data.period .== :prepandemic, :]
+    postlockdown = data[data.period .== :postlockdown, :]
+
+    # four days, seven sensors
+    @test nrow(prepandemic) == 4 * 7
+    @test nrow(postlockdown) == 4 * 7
+    
+    prepandemic_period = [[Date(2022, 08, 15), Date(2022, 08, 18)]] # four days, inclusive
+    postlockdown_period = [[Date(2022, 08, 22), Date(2022, 08, 23)], [Date(2022, 9, 7), Date(2022, 9, 8)]] # four days, but split
+
+    @test length(KFactors.Periods.filter_days(prepandemic_period[1][1], prepandemic_period[1][2])) == 4
+    @test length(KFactors.Periods.filter_days(postlockdown_period[1][1], postlockdown_period[1][2])) == 2
+    @test length(KFactors.Periods.filter_days(postlockdown_period[2][1], postlockdown_period[2][2])) == 2
+
+    # with default settings, all stations except 0 should be retained as all are 25% complete in each period
+    @test intersect(
+        KFactors.complete_enough_sensors(prepandemic, prepandemic_period, KFactors.DEFAULT_MIN_COMPLETE),
+        KFactors.complete_enough_sensors(postlockdown, postlockdown_period, KFactors.DEFAULT_MIN_COMPLETE)
+    ) == Set(1:6)
+
+    # with a 50% min complete, 3 should additionally be missing
+    @test intersect(
+        KFactors.complete_enough_sensors(prepandemic, prepandemic_period, 0.5),
+        KFactors.complete_enough_sensors(postlockdown, postlockdown_period, 0.5)
+    ) == Set([1, 2, 4, 5, 6])
+
+    # with 75% min complete, only 1 and 6 should be present
+    @test intersect(
+        KFactors.complete_enough_sensors(prepandemic, prepandemic_period, 0.75),
+        KFactors.complete_enough_sensors(postlockdown, postlockdown_period, 0.75)
+    ) == Set([1, 6])
+
+    # with 0% min complete, everything should be present
+    @test intersect(
+        KFactors.complete_enough_sensors(prepandemic, prepandemic_period, 0.0),
+        KFactors.complete_enough_sensors(postlockdown, postlockdown_period, 0.0)
+    ) == Set(0:6)
+
+    # with 75% min complete, 4 should be present postlockdown but not prepandemic
+    KFactors.complete_enough_sensors(prepandemic, prepandemic_period, 0.75) == Set([1, 4, 6])
+
+    # and 5 should be present prepandemic but not postlockdown
+    KFactors.complete_enough_sensors(postlockdown, postlockdown_period, 0.75) == Set([1, 5, 6])
 end
