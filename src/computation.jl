@@ -142,7 +142,7 @@ function permute(data, n_permutations, col)
     for permutation in 1:n_permutations
         shuffle!(rng, int_period)
         
-        for i in 1:length(dates)
+        for i in eachindex(dates)
             period_for_day[dates[i]] = int_period[i]
         end
        
