@@ -112,9 +112,9 @@ for district in DISTRICTS:
                                 cookies=sess,
                             ) as r:
                                 r.raise_for_status()
-                                    with open(outfile, "wb") as output:
-                                        for chunk in r.iter_content(8192):
-                                            output.write(chunk)
+                                with open(outfile, "wb") as output:
+                                    for chunk in r.iter_content(8192):
+                                        output.write(chunk)
                         except:
                             if i < 4:
                                 LOG.warning(
