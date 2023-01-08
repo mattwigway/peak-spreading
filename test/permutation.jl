@@ -1,9 +1,6 @@
 using DataFrames, Dates, HypothesisTests
 
-@testset "permute (probabilistic test, changes to Julia RNG algorithm or machine architecture may cause spurious failures, investigate this first)" begin
-    # True difference is 1, permuted differences should be zero
-    # and means should be around 0.5
-    data = DataFrame(
+get_data() = DataFrame(
         period=[fill(:prepandemic, 100); fill(:postlockdown, 100)],
         date=[
             # two obs per day
@@ -14,6 +11,11 @@ using DataFrames, Dates, HypothesisTests
         ],
         val=[fill(0, 100); fill(1, 100)]
     )
+
+@testset "permute (probabilistic test, changes to Julia RNG algorithm or machine architecture may cause spurious failures, investigate this first)" begin
+    # True difference is 1, permuted differences should be zero
+    # and means should be around 0.5
+    data = get_data()
 
     @test nrow(data) == 200
     @test length(unique(data.date)) == 100  # each day should have two records
@@ -82,4 +84,31 @@ using DataFrames, Dates, HypothesisTests
     @test pvalue(BinomialTest(blockmeans .== 0.0, 0.5 * 1/3)) > 0.1
     @test pvalue(BinomialTest(blockmeans .== 1.0, 0.5 * 1/3)) > 0.1
     @test pvalue(BinomialTest(blockmeans .== 0.5, 2 * 0.5 * 2/3)) > 0.1
+end
+
+@testset "permutation_test convenience function (probabilistic test)" begin
+    data = get_data()
+
+    tstat = KFactors.permutation_test(data, :val, n_permutations=10_000)
+    @test tstat.ptest == 1
+    @test tstat.pval ≤ 0.0001
+
+    # now, force before and after to have same mean
+    data.val = [
+        fill(0.0, 25);
+        fill(1.0, 25);
+        fill(0.0, 25);
+        fill(1.0, 25);
+        fill(0.0, 25);
+        fill(1.0, 25);
+        fill(0.0, 25);
+        fill(1.0, 25);
+    ]
+
+    data.station = [1:50; 1:50; 1:50; 1:50]
+
+    tstat = KFactors.permutation_test(data, :val, n_permutations=10_000)
+    @test tstat.ptest == 0
+    @test tstat.pval ≈ 1
+    @test tstat.n_sensors == 50
 end
