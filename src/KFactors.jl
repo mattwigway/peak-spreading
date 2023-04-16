@@ -11,6 +11,7 @@ include("holidays.jl")
 include("KFactorPeaks.jl")
 include("computation.jl")
 include("periods.jl")
+include("fundamental_diagrams.jl")
 
 export HOLIDAYS, HOLIDAYS_Δ1, read_data, permutation_test, period_for_year, period_days_for_year, parse_file, VDF
 end
