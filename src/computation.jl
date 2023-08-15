@@ -173,6 +173,9 @@ function permutation_test(data, col; n_permutations=DEFAULT_PERMUTATIONS)
     n_sensors = length(unique(data.station))
     
     if obs_diff <= median(sampling_dist_diff_means)
+        # This should probably be ≤ rather than <, but that's not the way it was done in the paper,
+        # and it doesn't matter - for all the numbers reported in the paper, changing to ≤ changes
+        # nothing (confirmed).
         pval = 2 * mean(sampling_dist_diff_means .< obs_diff)
     else
         pval = 2 * mean(sampling_dist_diff_means .> obs_diff)
