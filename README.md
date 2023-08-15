@@ -54,6 +54,9 @@ This produces Figure 4.
 
 This produces the models in the appendix.
 
+## `Fundamental diagrams.ipynb`
+
+This produces the fundamental diagrams in Figure 2.
 
 
 
