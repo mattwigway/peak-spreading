@@ -58,6 +58,10 @@ This produces the models in the appendix.
 
 This produces the fundamental diagrams in Figure 2.
 
+## Automated tests
+
+Most key aspects of the analysis have automated tests in the test/ directory. Run them by typing `]test` at the Julia prompt. Tests are run on each commit by Github Actions.
+
 
 
 Notebooks code is in notebooks. In addition to jupyterlab, install [Julia](https://julialang.org) and IJulia to run them.
