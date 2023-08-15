@@ -85,7 +85,9 @@ function complete_enough_sensors(subset, period, min_complete)
         # This is total not imputed or missing, because if they were missing for another reason they wouldn't be in the
         # peaks file at all, because that entire sensor-day would have been dropped during peak calculation. Since we sum
         # up just the ones that are present, and then divide by the total possible periods, we are getting a percent complete.
+        # Note in paper how imputation is binarized in ingest?
         combine(_, :periods_imputed => (x -> sum(288 .- x)) => :total_not_imputed)
+    # DST would be an issue here if we didn't drop Sundays from our analysis
     total_periods_possible = sum(length.([Periods.filter_days(p[1], p[2]) for p in period])) * 288
     complete_by_sensor.proportion_complete = complete_by_sensor.total_not_imputed ./ total_periods_possible
     Set(complete_by_sensor[complete_by_sensor.proportion_complete .≥ min_complete, :station])
@@ -114,15 +116,6 @@ function cumulative_dist(v)
     return sorted, (1:length(sorted)) ./ length(sorted)
 end
 
-function cumulative_dist(v, w)
-    f = isfinite.(v) .& isfinite.(w)
-    v = v[f]
-    w = w[f]
-    sorter = sortperm(v)
-    sorted = v[sorter]
-    return sorted, cumsum(w[sorter]) / sum(w)
-end
-
 const PREPANDEMIC = 1
 const POSTLOCKDOWN = 2
 
@@ -149,7 +142,7 @@ function permute(data, n_permutations, col)
     for permutation in 1:n_permutations
         shuffle!(rng, int_period)
         
-        for i in 1:length(dates)
+        for i in eachindex(dates)
             period_for_day[dates[i]] = int_period[i]
         end
        
@@ -179,7 +172,7 @@ function permutation_test(data, col; n_permutations=DEFAULT_PERMUTATIONS)
     obs_diff = obs_means[obs_means.period .== :postlockdown, :mean][1] - obs_means[obs_means.period .== :prepandemic, :mean][1]
     n_sensors = length(unique(data.station))
     
-    if obs_diff <= mean(sampling_dist_diff_means)
+    if obs_diff <= median(sampling_dist_diff_means)
         pval = 2 * mean(sampling_dist_diff_means .< obs_diff)
     else
         pval = 2 * mean(sampling_dist_diff_means .> obs_diff)
@@ -188,5 +181,6 @@ function permutation_test(data, col; n_permutations=DEFAULT_PERMUTATIONS)
     return (ptest=obs_diff, pval=pval, n_sensors=n_sensors)
 end
 
-idx_for_time(time) = Dates.hour(time) * 12 + Dates.minute(time) ÷ 5 + 1
+# using convert rather than ÷ to ensure an inexacterror is thrown with non-quantized times
+idx_for_time(time) = convert(Int64, Dates.hour(time) * 12 + Dates.minute(time) / 5 + 1)
 time_for_idx(idx) = Dates.Time((idx - 1) ÷ 12, (idx - 1) % 12 * 5)

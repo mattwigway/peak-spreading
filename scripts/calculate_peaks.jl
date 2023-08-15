@@ -32,11 +32,10 @@ function main(args)
     total_files = length(candidate_files)
     @info "Found $total_files candidate files"
 
-    @showprogress @distributed for file in candidate_files
+    # no progress meter on this, see https://github.com/timholy/ProgressMeter.jl/issues/242
+    @sync @distributed for file in candidate_files
         parse_file(joinpath(data_dir, file))
     end
-
-    sleep(60) # work around https://github.com/timholy/ProgressMeter.jl/issues/242
 end
 
 main(ARGS)

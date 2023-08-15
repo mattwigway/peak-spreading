@@ -24,11 +24,12 @@ import sys
 from time import sleep
 from random import random
 import argparse
+import re
 
 DISTRICTS = [3, 4, 5, 6, 7, 8, 10, 11, 12]
 # DISTRICTS = [8, 10, 11, 12]
-YEARS = [2022]
-#YEARS = [2021]  # run script again to update data
+#YEARS = [2016, 2017, 2018, 2019, 2020, 2021, 2022]
+YEARS = [2022]  # run script again to update data
 
 logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s",
@@ -89,13 +90,34 @@ for district in DISTRICTS:
 
         file_dir = file_req.json()
 
+        if file_dir == []:
+            LOG.info(f"District {district} has no data for year {year}")
+            continue
+
         for month, files in file_dir["data"].items():
             LOG.info(f"{month} ({len(files)} files)")
 
             for file in files:
+                if not re.match("^d[a-z0-9_]+[.]txt([.]gz)?$", file["file_name"]):
+                    raise ValueError(f"Invalid file name {file['file_name']}")
+                
+                # analysis ends August 18, 2022, short-circuit here
+                m = re.search("(20[0-9]{2})_([0-9]{2})_([0-9]{2})", file["file_name"])
+                fileyear = int(m[1])
+                filemonth = int(m[2])
+                fileday = int(m[3])
+
+                if fileyear == 2022 and (filemonth > 8 or (filemonth == 8 and fileday > 18)):
+                    continue
+
                 complete = False
                 final_outfile = os.path.join(data_folder, file["file_name"])
                 if os.path.exists(final_outfile):
+                    # check file size
+                    expected_fsize = int(file["bytes"].replace(",", ""))
+                    actual_fsize = os.path.getsize(final_outfile)
+                    if expected_fsize != actual_fsize:
+                        LOG.warn(f"Expected and actual file sizes differ for file {file['file_name']}")
                     LOG.info(
                         f"{file['file_name']} already exists in output directory, skipping"
                     )
@@ -112,13 +134,13 @@ for district in DISTRICTS:
                                 cookies=sess,
                             ) as r:
                                 r.raise_for_status()
-                                    with open(outfile, "wb") as output:
-                                        for chunk in r.iter_content(8192):
-                                            output.write(chunk)
-                        except:
+                                with open(outfile, "wb") as output:
+                                    for chunk in r.iter_content(8192):
+                                        output.write(chunk)
+                        except Exception as e:
                             if i < 4:
                                 LOG.warning(
-                                    f"Error retrieving {file['file_name']}, retrying"
+                                    f"Error retrieving {file['file_name']}, retrying", e
                                 )
                             else:
                                 LOG.error(

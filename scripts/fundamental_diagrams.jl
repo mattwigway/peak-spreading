@@ -81,7 +81,8 @@ function process_file(day, geo, result)
     day = day[(coalesce.(day.per_lane_flow_vph .≤ 2400, false)
         .&& .!ismissing.(day.avg_speed_mph)
         .&& .!ismissing.(day.total_flow)
-        .&& .!ismissing.(day.avg_occ)), :]
+        .&& .!ismissing.(day.avg_occ)
+        .&& (day.pct_obs .== 100)), :]
 
     # (veh/5 min) / (miles / 5 min) = (veh / mile)
     day.vehdens = day.total_flow ./ (day.avg_speed_mph ./ 12) ./ day.Lanes;

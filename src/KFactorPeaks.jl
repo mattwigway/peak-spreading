@@ -1,6 +1,9 @@
+# In this file, we have functions to convert 5-minute sensor data from PeMS into sensor-day level data with peaking information.
+
 # periods is a dict of period name (e.g. pre-pandemic, post-pandemic, etc.) to dates (inclusive) for said period
 # days is the days of the week to retain (e.g. dropping weekends)
 function read_day_file(path::String)
+    # FLAG FOR FOLLOWUP - ARE COLUMNS CORRECT
     cols = [:timestamp, :station, :district, :freeway_number, :direction, :lane_type, :station_len, :samples, :pct_obs, :total_flow, :avg_occ, :avg_speed_mph]
     
     try
@@ -10,7 +13,7 @@ function read_day_file(path::String)
             # do not all have the same number of lanes, not all rows have same number of columns. Ignore
             # warnings about that.
             with_logger(NullLogger()) do
-                data = CSV.read(stream, DataFrame, select=collect(1:12), header=cols, dateformat="mm/dd/yyyy HH:MM:SS")#, types=types)
+                data = CSV.read(stream, DataFrame, select=collect(1:12), header=cols, dateformat="mm/dd/yyyy HH:MM:SS")
             end
             
             # create bare date/time fields
@@ -23,6 +26,9 @@ function read_day_file(path::String)
     end
 end
 
+# look at time, occupancy, and flow, to find the hour of the day with the highest occupancy
+# then calculate percentage of occupancy and flow that are in that hour. See discussion in paper
+# justifying defining peak hour based solely on occupancy.
 function peak_hour_factor_binary(time, avg_occ, flow)
     if any(isnodata.(avg_occ)) || any(isnodata.(time)) || any(isnodata.(flow))
         return (peak_hour_start=missing, peak_hour_occ=missing, peak_hour_occ_avg=missing, peak_hour_flow=missing)
@@ -41,6 +47,7 @@ function peak_hour_factor_binary(time, avg_occ, flow)
 
     if !(
         length(sorted_occ) == (24 * 12) || # 12 5 minute periods per hour, 24 hours per day
+        # Or daylight savings time start day with 2:00 - 2:55 missing
         (length(sorted_occ) == (23 * 12) && all((Time(2, 0, 0)):Minute(5):(Time(2, 55, 0)) .∉ Ref(sorted_time)))
         )
         return (peak_hour_start=missing, peak_hour_occ=missing, peak_hour_occ_avg=missing, peak_hour_flow=missing)
