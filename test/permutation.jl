@@ -89,6 +89,8 @@ end
 @testset "permutation_test convenience function (probabilistic test)" begin
     data = get_data()
 
+    data.station = [1:50; 1:50; 1:50; 1:50]
+
     tstat = KFactors.permutation_test(data, :val, n_permutations=10_000)
     @test tstat.ptest == 1
     @test tstat.pval ≤ 0.0001
@@ -104,8 +106,6 @@ end
         fill(0.0, 25);
         fill(1.0, 25);
     ]
-
-    data.station = [1:50; 1:50; 1:50; 1:50]
 
     tstat = KFactors.permutation_test(data, :val, n_permutations=10_000)
     @test tstat.ptest == 0
