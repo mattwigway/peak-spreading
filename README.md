@@ -4,7 +4,7 @@
 
 The exact data used is available from the [UNC Dataverse](https://doi.org/10.15139/S3/OUIPOT). This code is available from there as well, but the original code is hosted [on Github](https://github.com/mattwigway/peak-spreading). The version used in the PLoS paper is tagged `plos-final`.
 
-PeMS data is available [from Caltrans](https://pems.dot.ca.gov/) through a web interface that allows downloading data for a single district and day at a time. We have several thousand district-day combinations, so downloading them all would be tedious. The `scrape_data.py` script will download the data. It expects `PEMS_USER` and `PEMS_PASSWORD` to be environment variables. It expects a data folder as an argument. This should be on a disk with plenty of space---the full dataset is several hundred gigabytes.
+The original data source for the data is [Caltrans PeMS](https://pems.dot.ca.gov/) through a web interface that allows downloading data for a single district and day at a time. We have several thousand district-day combinations, so downloading them all would be tedious. The `scrape_data.py` script will download the data from PeMS, if you do not wish to get it from Dataverse. It expects `PEMS_USER` and `PEMS_PASSWORD` to be environment variables. It expects a data folder as an argument. This should be on a disk with plenty of space---the full dataset is several hundred gigabytes.
 
 What years and districts to download are specified at the top of the script. The script is smart enough to not re-download files that already exist in the output directory, but even retrieving metadata can take some time, so if you know a year is already downloaded it can be wise to specify the years you wish to download.
 
